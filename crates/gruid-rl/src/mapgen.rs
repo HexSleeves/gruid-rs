@@ -7,6 +7,7 @@
 
 use crate::grid::{Cell, Grid};
 use gruid_core::Point;
+use gruid_paths::PathRange;
 use rand::Rng;
 
 /// Trait for choosing a random neighbor during random-walk cave generation.
@@ -66,6 +67,37 @@ impl<R: Rng> MapGen<R> {
     /// Create a new MapGen with the given grid.
     pub fn with_grid(grid: Grid, rng: R) -> Self {
         Self { rng, grid }
+    }
+
+    /// Keep only the connected component reachable from `p`, filling
+    /// everything else with `wall`.
+    ///
+    /// Uses the last `cc_map_all` (or `cc_map`) results from `pr`.
+    /// Paths are assumed to be bidirectional.
+    ///
+    /// Returns the number of cells in the surviving connected component,
+    /// or 0 if `p` is not reachable.
+    pub fn keep_connected(&self, pr: &PathRange, p: Point, wall: Cell) -> usize {
+        let id = match pr.cc_at(p) {
+            Some(id) => id,
+            None => {
+                self.grid.fill(wall);
+                return 0;
+            }
+        };
+        let mut count = 0;
+        let sz = self.grid.size();
+        for y in 0..sz.y {
+            for x in 0..sz.x {
+                let q = Point::new(x, y);
+                if pr.cc_at(q) != Some(id) {
+                    self.grid.set(q, wall);
+                } else {
+                    count += 1;
+                }
+            }
+        }
+        count
     }
 
     /// Generate a cave using random walk.
@@ -259,6 +291,28 @@ impl<R: Rng> MapGen<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gruid_paths::Pather;
+
+    /// Simple pather for testing: treats Cell(0) as passable with 4-directional movement.
+    struct FloorPather<'a> {
+        grid: &'a Grid,
+    }
+
+    impl Pather for FloorPather<'_> {
+        fn neighbors(&self, p: Point, buf: &mut Vec<Point>) {
+            for &d in &[
+                Point::new(1, 0),
+                Point::new(-1, 0),
+                Point::new(0, 1),
+                Point::new(0, -1),
+            ] {
+                let np = Point::new(p.x + d.x, p.y + d.y);
+                if self.grid.at(np) == Some(Cell(0)) {
+                    buf.push(np);
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_random_walk_carves_cells() {
@@ -291,5 +345,44 @@ mod tests {
         let mg = MapGen::with_grid(grid, rand::rng());
         let count = mg.count_walls(Point::new(1, 1), 1, Cell(1), false);
         assert_eq!(count, 9); // 3x3 = 9 including center
+    }
+
+    #[test]
+    fn test_keep_connected() {
+        // 5x5 grid with two disconnected floor regions:
+        //   00100
+        //   00100
+        //   11111  (wall row)
+        //   00100
+        //   00100
+        let grid = Grid::new(5, 5);
+        grid.fill(Cell(0)); // all floor
+        // Create a wall cross that separates corners
+        for i in 0..5 {
+            grid.set(Point::new(2, i), Cell(1)); // vertical wall
+            grid.set(Point::new(i, 2), Cell(1)); // horizontal wall
+        }
+        // Now we have 4 disconnected 2x2 floor regions
+        // Top-left: (0,0),(1,0),(0,1),(1,1)
+        // Top-right: (3,0),(4,0),(3,1),(4,1)
+        // etc.
+
+        let rng = gruid_core::Range::new(0, 0, 5, 5);
+        let mut pr = PathRange::new(rng);
+        let pather = FloorPather { grid: &grid };
+        pr.cc_map_all(&pather);
+
+        let mg = MapGen::with_grid(grid, rand::rng());
+        let kept = mg.keep_connected(&pr, Point::new(0, 0), Cell(1));
+        assert_eq!(kept, 4); // top-left 2x2 region
+
+        // All other floor regions should now be walls
+        assert_eq!(mg.grid.at(Point::new(3, 0)), Some(Cell(1)));
+        assert_eq!(mg.grid.at(Point::new(0, 3)), Some(Cell(1)));
+        assert_eq!(mg.grid.at(Point::new(3, 3)), Some(Cell(1)));
+
+        // The kept region should still be floor
+        assert_eq!(mg.grid.at(Point::new(0, 0)), Some(Cell(0)));
+        assert_eq!(mg.grid.at(Point::new(1, 1)), Some(Cell(0)));
     }
 }
