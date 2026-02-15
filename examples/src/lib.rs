@@ -46,9 +46,11 @@ const COL_CURSOR: Color = Color::from_rgb(80, 200, 80);
 
 const HELP_TEXT: &str = "\
 Movement:    arrows / hjkl / yubn (diagonals)
+Wait:        . or space
 Mouse:       click to auto-move toward target
 Examine:     x to enter look mode, move cursor, ESC to exit
-Pathfinding: p to toggle A* path overlay
+Pathfinding: p to toggle path overlay
+Algorithm:   TAB to switch A* / JPS
 Dijkstra:    d to toggle distance heatmap
 Help:        ? to show this screen
 Quit:        q or ESC";
@@ -133,6 +135,28 @@ enum Mode {
     Help,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PathAlgo {
+    Astar,
+    Jps,
+}
+
+impl PathAlgo {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Astar => "A*",
+            Self::Jps => "JPS",
+        }
+    }
+
+    fn toggle(self) -> Self {
+        match self {
+            Self::Astar => Self::Jps,
+            Self::Jps => Self::Astar,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Game
 // ---------------------------------------------------------------------------
@@ -151,6 +175,7 @@ pub struct Game {
     // Overlays
     show_path: bool,
     show_dijkstra: bool,
+    path_algo: PathAlgo,
     path_cache: Vec<Point>,
     // Cursor / mouse
     cursor: Point,
@@ -241,6 +266,7 @@ impl Game {
             messages: vec!["Welcome! Press ? for help.".into()],
             show_path: false,
             show_dijkstra: false,
+            path_algo: PathAlgo::Astar,
             path_cache: Vec::new(),
             cursor: player,
             mode: Mode::Play,
@@ -269,11 +295,27 @@ impl Game {
         }
     }
 
+    fn find_path(&mut self, from: Point, to: Point) -> Option<Vec<Point>> {
+        match self.path_algo {
+            PathAlgo::Astar => {
+                let pather = MapPather { map: &self.map };
+                self.path_range.astar_path(&pather, from, to)
+            }
+            PathAlgo::Jps => {
+                let map = &self.map;
+                self.path_range.jps_path(
+                    from,
+                    to,
+                    |p| map.at(p) == Some(FLOOR),
+                    false, // 4-way cardinal only
+                )
+            }
+        }
+    }
+
     fn recompute_path(&mut self) {
-        let pather = MapPather { map: &self.map };
         self.path_cache = self
-            .path_range
-            .astar_path(&pather, self.player, self.cursor)
+            .find_path(self.player, self.cursor)
             .unwrap_or_default();
     }
 
@@ -472,6 +514,14 @@ impl gruid_core::app::Model for Game {
                                 self.log("Dijkstra heatmap OFF.".into());
                             }
                         }
+                        Key::Tab => {
+                            self.path_algo = self.path_algo.toggle();
+                            let label = self.path_algo.label();
+                            self.log(format!("Pathfinding: {label}"));
+                            if self.show_path {
+                                self.recompute_path();
+                            }
+                        }
                         Key::Char('x') => {
                             self.mode = Mode::Look;
                             self.cursor = self.player;
@@ -505,8 +555,7 @@ impl gruid_core::app::Model for Game {
 
                     if action == MouseAction::Main && self.mode == Mode::Play {
                         // Click to auto-move.
-                        let pather = MapPather { map: &self.map };
-                        if let Some(path) = self.path_range.astar_path(&pather, self.player, pos) {
+                        if let Some(path) = self.find_path(self.player, pos) {
                             if path.len() > 1 {
                                 self.auto_path = path;
                                 self.auto_step = 1;
@@ -684,7 +733,14 @@ impl gruid_core::app::Model for Game {
         };
         let overlays = format!(
             "{}{}",
-            if self.show_path { "[PATH]" } else { "" },
+            if self.show_path {
+                match self.path_algo {
+                    PathAlgo::Astar => "[A*]",
+                    PathAlgo::Jps => "[JPS]",
+                }
+            } else {
+                ""
+            },
             if self.show_dijkstra { "[DJKS]" } else { "" },
         );
 
