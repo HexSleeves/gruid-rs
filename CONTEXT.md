@@ -12,7 +12,7 @@ cross-platform grid-based UI and game framework using the Elm architecture
 (Model-View-Update). Designed for roguelike games but general-purpose.
 
 **Go original:** `/home/exedev/gruid/` (10,290 LOC across 5 packages + 3 driver repos)
-**Rust port:** `/home/exedev/gruid-rs/` (~6,500 LOC across 7 crates)
+**Rust port:** `/home/exedev/gruid-rs/` (~7,400 LOC across 7 crates)
 **Repo:** https://github.com/HexSleeves/gruid-rs
 
 ---
@@ -32,7 +32,7 @@ gruid-rs/
 │   │       ├── geom.rs     # Point (i32 x,y), Range (half-open rect), iterators
 │   │       ├── style.rs    # Color (u32 RGB), AttrMask (bitflags), Style (fg/bg/attrs)
 │   │       ├── cell.rs     # Cell { ch: char, style: Style }
-│   │       ├── grid.rs     # Grid with Rc<RefCell<GridBuffer>> shared storage
+│   │       ├── grid.rs     # Grid with Rc<RefCell<GridBuffer>> shared storage, RELATIVE coords
 │   │       ├── messages.rs # Key, ModMask, MouseAction, Msg enum
 │   │       ├── app.rs      # Model/Driver/EventLoopDriver traits, App, AppRunner, Effect
 │   │       └── recording.rs # FrameEncoder/FrameDecoder (STUB — not implemented)
@@ -46,14 +46,14 @@ gruid-rs/
 │   │       ├── astar.rs    # PathRange::astar_path() — works
 │   │       ├── dijkstra.rs # PathRange::dijkstra_map/at() — works
 │   │       ├── bfs.rs      # PathRange::bfs_map/at() — works
-│   │       ├── jps.rs      # PathRange::jps_path() — 8-way works, 4-way BROKEN
+│   │       ├── jps.rs      # PathRange::jps_path() — works (8-way AND 4-way)
 │   │       └── cc.rs       # PathRange::cc_map_all/cc_map/cc_at() — works
 │   ├── gruid-rl/           # Roguelike utilities
 │   │   └── src/
 │   │       ├── lib.rs
-│   │       ├── grid.rs     # rl::Grid (Cell=i32) — BUG: uses absolute coords
-│   │       ├── fov.rs      # FOV — BUG: algorithm diverges from Go, trait incomplete
-│   │       ├── mapgen.rs   # MapGen — BUG: countWalls skips center cell
+│   │       ├── grid.rs     # rl::Grid (Cell=i32) — RELATIVE coords, matches Go
+│   │       ├── fov.rs      # FOV — VisionMap + SSC, matches Go's algorithms
+│   │       ├── mapgen.rs   # MapGen — cellular automata + random walk, matches Go
 │   │       └── events.rs   # EventQueue<E> — works
 │   ├── gruid-ui/           # UI widgets
 │   │   └── src/
@@ -87,6 +87,17 @@ gruid-rs/
 
 ## Key Architecture Decisions
 
+### Relative Coordinate System
+
+Both `gruid_core::Grid` and `gruid_rl::Grid` use **relative** coordinates
+matching Go gruid's semantics. After `grid.slice(Range::new(5,5,10,10))`,
+`grid.set(Point::new(0,0), c)` writes to position (5,5) in the underlying
+buffer. `slice()` takes a relative range, clamped to the grid's size.
+
+All public methods (`at`, `set`, `contains`, `iter`, `map_cells`, `fill`)
+work with relative coordinates. Internal storage uses absolute coords in the
+shared buffer.
+
 ### Two Driver Models
 
 The core supports both poll-based and event-loop-based backends:
@@ -100,7 +111,7 @@ pub trait Driver {
     fn close(&mut self);
 }
 
-// Event-loop-based (winit): Driver owns the event loop
+// Event-loop-based (winit): Driver owns the main thread
 pub trait EventLoopDriver {
     fn run(self, runner: AppRunner) -> Result<()>;
 }
@@ -117,16 +128,31 @@ pub trait EventLoopDriver {
 
 Both `gruid_core::Grid` and `gruid_rl::Grid` use `Rc<RefCell<GridBuffer>>` for
 slice semantics (like Go's slice-of-underlying-array). `Clone` shares the buffer.
-`Slice()` returns a new Grid with narrower bounds but same buffer pointer.
+`slice()` returns a new Grid with narrower bounds but same buffer pointer.
 
-**KNOWN BUG:** Coordinates should be relative (slice-local) but are currently
-absolute. See TODO.md C1.
+### FOV Algorithms
+
+Two FOV algorithms, both matching Go gruid:
+
+1. **VisionMap** (ray-based): Octant-parent ray propagation. Non-binary visibility
+   with cost accumulation via `Lighter` trait (`cost(src, from, to)` + `max_cost(src)`).
+   Supports `From`/`Ray` traceback and multi-source `LightMap`.
+
+2. **SSCVisionMap** (symmetric shadow casting): Albert Ford's algorithm.
+   Binary visibility with `diags` parameter. Multi-source `SSCLightMap`.
+
+### JPS Pathfinding
+
+Faithfully ported from Go gruid. Both 8-way (diagonal) and 4-way (cardinal-only)
+modes work. Uses `dirnorm` for direction normalization, `expandOrigin` for initial
+successors, `straightMax` for edge optimization, and `jumpPath` with cardinal
+intermediates for no-diags mode.
 
 ### Frame Diffing
 
 `compute_frame(prev, curr)` compares two same-sized grids cell-by-cell and
-returns only changed cells as a `Frame { cells: Vec<FrameCell> }`. Drivers
-only render the diff.
+returns only changed cells as a `Frame { cells: Vec<FrameCell> }`. Positions
+in the frame are relative (0-based). Drivers only render the diff.
 
 ### PathRange Cache Pattern
 
@@ -153,11 +179,11 @@ The Go original is cloned at `/home/exedev/gruid/`. Key files:
 | `ui.go` | App loop, Effect dispatch (goroutine spawning), Driver interface |
 | `messages.go` | Input event types |
 | `recording.go` | gzip+gob frame encoding |
-| `paths/jps.go` | JPS algorithm (especially no-diags mode) |
+| `paths/jps.go` | JPS algorithm — already ported |
 | `paths/pathrange.go` | Epoch-based cache invalidation |
-| `rl/fov.go` | Both FOV algorithms, Lighter interface, ray traceback |
+| `rl/fov.go` | Both FOV algorithms — already ported |
 | `rl/mapgen.go` | Vault system, KeepCC, countWalls, RandomWalkCave |
-| `rl/grid.go` | Integer-cell grid with relative coordinates |
+| `rl/grid.go` | Integer-cell grid with relative coordinates — already ported |
 | `ui/menu.go` | Full menu with mouse, pagination, multi-column layout |
 | `ui/pager.go` | Pager with all navigation modes |
 | `ui/textinput.go` | Text input with prompt and cursor |
@@ -168,20 +194,26 @@ The Go original is cloned at `/home/exedev/gruid/`. Key files:
 
 ## Known Working State
 
-- **33 tests pass** (`cargo test -p gruid-core -p gruid-rl`)
+- **48 tests pass** (`cargo test -p gruid-core -p gruid-paths -p gruid-rl -p gruid-ui -p gruid-crossterm`)
 - **Workspace compiles clean** (`cargo check --workspace`, zero warnings)
+- **Grid relative coordinates** — both gruid-core and gruid-rl match Go semantics
+- **JPS 4-way and 8-way** — both work, faithfully ported from Go
+- **FOV VisionMap + SSC** — both work, match Go algorithms, with From/Ray/LightMap
+- **countWalls** — includes center cell, matches Go
+- **RandomWalkCave** — random start positions, outDigs logic, matches Go
 - **roguelike example works** — cave generation, FOV, movement in both
   crossterm and winit backends
 - **Winit DPI scaling** works on Retina displays
 
-## Known Broken State
+## Known Incomplete / Missing
 
-- **JPS 4-way mode** — produces wrong paths
-- **Grid coordinates after Slice()** — uses absolute instead of relative
-- **FOV algorithm** — different from Go, `Lighter` trait incomplete
-- **countWalls** — skips center cell (Go includes it)
-- **Sub effects** — silently dropped
+- **Sub effects** — silently dropped (no thread spawning)
 - **Recording** — stub only
+- **Vault system** — not implemented
+- **KeepCC** — not implemented
+- **UI widgets** — partial (keys only, no mouse/pagination/prompt)
+- **Grid Resize** — not implemented
+- **StyledText @r markup** — partial
 
 ---
 
@@ -237,3 +269,4 @@ gruid-core (no deps)
 - Optional serde: `#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]`
 - Error type: `Box<dyn std::error::Error>` throughout (no custom error types yet).
 - Naming: `Box` is reserved in Rust → file is `box_.rs`, type is `BoxDecor`.
+- Grid coordinates: always **relative** to the view's origin. `bounds()` returns absolute range in buffer; `range_()` returns relative range (0,0 to size).

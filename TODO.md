@@ -3,63 +3,40 @@
 Comprehensive task list for completing the Rust port of [gruid](https://codeberg.org/anaseto/gruid).
 The Go original lives at `/home/exedev/gruid/` for reference.
 
-Current state: ~6,500 LOC across 7 crates. Estimated remaining: ~2,150 LOC.
+Current state: ~7,400 LOC across 7 crates, 48 tests passing.
+Estimated remaining: ~1,500 LOC.
 
 ---
 
-## 🔴 Critical: Semantic Bugs (P0)
+## ✅ Completed: Critical Bugs (P0)
 
-These are things that exist but behave incorrectly.
+All P0 items are resolved.
 
-### C1. Grid coordinate system — relative vs absolute
-- **File:** `crates/gruid-rl/src/grid.rs`, `crates/gruid-core/src/grid.rs`
-- **Bug:** Go `Set`/`At`/`Contains` use **relative** coordinates (slice-local). After
-  `grid.Slice(Range(5,5,10,10))`, Go's `Set(Point{0,0}, c)` writes to position (5,5)
-  in the underlying buffer. Our Rust rl::Grid uses **absolute** coordinates, so
-  `set(Point(0,0), c)` is out of bounds on a sliced grid.
-- **Impact:** Breaks all downstream consumers — FOV, mapgen, UI widgets all assume
-  relative coordinates after slicing.
-- **Fix:** In both `Grid` types, `set(p)` / `at(p)` must add `self.bounds.min` to `p`
-  internally. `contains(p)` must check `p + bounds.min` is within bounds. `Slice(rg)`
-  must take a **relative** range and offset by current `bounds.min`.
-- **Ref:** Go `grid.go` lines 200-230 (Set/At), lines 155-175 (Slice)
+### ~~C1. Grid coordinate system — relative vs absolute~~ ✅
+- Both gruid-core::Grid and gruid-rl::Grid now use relative coordinates
+- `slice()` takes relative range, `at()`/`set()`/`contains()` translate internally
+- All UI widgets updated for relative coords
 
-### C2. JPS 4-way (no-diags) mode is broken
-- **File:** `crates/gruid-paths/src/jps.rs`
-- **Bugs (4):**
-  1. Forced-neighbor detection is a logical contradiction: `!passable(X) && passable(X)`
-  2. Diagonal jumps fall into the horizontal branch instead of a separate no-diags handler
-  3. Direction normalization uses `signum` instead of Go's `dirnorm` (misclassifies
-     non-clean directions after diagonal jumps)
-  4. Path interpolation doesn't insert cardinal intermediates for diagonal steps
-- **Impact:** 4-way JPS produces wrong/no paths. 8-way mode works fine.
-- **Fix:** Port Go's `jumpStraightNoDiags`, `jumpDiagonalNoDiags`, `neighborsNoDiags`,
-  `jumpPathNoDiags` functions faithfully.
-- **Ref:** Go `paths/jps.go` lines 200-616
+### ~~C2. JPS 4-way (no-diags) mode~~ ✅
+- Complete rewrite porting Go's jps.go faithfully
+- Fixed: forced-neighbor detection, diagonal handler, dirnorm, path interpolation
+- 5 new tests (8-way, 4-way, around walls, manhattan, no-path)
 
-### C3. FOV algorithm divergence
-- **File:** `crates/gruid-rl/src/fov.rs`
-- **Bugs:**
-  1. `vision_map` uses a different algorithm than Go's octant-parent ray propagation
-  2. `Lighter` trait missing the `src` (source point) parameter: Go has
-     `Cost(src, from, to Point) int`; Rust has `cost(from, to) -> i32`
-  3. `Lighter` trait missing `MaxCost(src Point) int` method
-  4. SSC algorithm missing `diags` parameter (Go supports 4-way mode)
-- **Fix:** Port Go's `visionMap` octant traversal from `rl/fov.go` lines 130-250.
-  Update `Lighter` trait to include source and max_cost.
-- **Ref:** Go `rl/fov.go`
+### ~~C3. FOV algorithm divergence~~ ✅
+- VisionMap: ported Go's octant-parent ray propagation
+- Lighter trait: now `cost(src, from, to)` + `max_cost(src)` matching Go
+- SSC: ported Go's algorithm with `diags` parameter
+- Added: From, Ray, LightMap, SSCLightMap
 
-### C4. Cellular automata `countWalls` off-by-one
-- **File:** `crates/gruid-rl/src/mapgen.rs`, `count_walls_ring()` method
-- **Bug:** Go includes the center cell `(0,0)` in the wall count. Rust has
-  `if dx == 0 && dy == 0 { continue; }` which skips it.
-- **Impact:** Changes threshold behavior — maps generate differently.
-- **Fix:** Remove the `(0,0)` skip. One-line change.
-- **Ref:** Go `rl/mapgen.go` `countWalls` function
+### ~~C4. Cellular automata countWalls off-by-one~~ ✅
+- countWalls now includes center cell, uses Range intersection
+- RandomWalkCave improved: random start positions, outDigs escape logic
 
 ---
 
 ## 🟡 Major: Missing Features (P1)
+
+Recommended order: M9 → M10 → M1 → M2 → M5 → M6–M8
 
 ### M1. Vault system (rl/mapgen)
 - **File:** New `crates/gruid-rl/src/vault.rs`
@@ -74,19 +51,11 @@ These are things that exist but behave incorrectly.
   the largest connected component and fill the rest with walls.
 - **Ref:** Go `rl/mapgen.go` `KeepCC` function
 
-### M3. Multi-source FOV lighting
-- **File:** `crates/gruid-rl/src/fov.rs`
-- **Missing:** `FOV::light_map(lighter, sources, max_cost)` — ray-based FOV from
-  multiple sources. `FOV::ssc_light_map(sources, max_range, passable)` — SSC from
-  multiple sources.
-- **Ref:** Go `rl/fov.go` `LightMap`/`SSCLightMap`
+### M3. Multi-source FOV lighting — DONE (included in C3 fix)
+- `FOV::light_map()` and `FOV::ssc_light_map()` are implemented.
 
-### M4. FOV ray traceback
-- **File:** `crates/gruid-rl/src/fov.rs`
-- **Missing:** `FOV::from(lighter, to) -> Option<LightNode>` — return the previous
-  position in the light ray. `FOV::ray(lighter, to) -> Vec<LightNode>` — return the
-  full ray path from source to target.
-- **Ref:** Go `rl/fov.go` `From`/`Ray` methods
+### M4. FOV ray traceback — DONE (included in C3 fix)
+- `FOV::from()` and `FOV::ray()` are implemented.
 
 ### M5. Replay widget
 - **File:** New `crates/gruid-ui/src/replay.rs`
@@ -170,7 +139,6 @@ These are things that exist but behave incorrectly.
 ### P3. rl::Grid missing methods
 - **File:** `crates/gruid-rl/src/grid.rs`
 - `Resize(w, h)` — grow underlying buffer
-- `Range()` — return relative range (min at 0,0)
 - `AtU(p)` — unchecked access (skip bounds check)
 - Full `GridIterator` matching core Grid
 
@@ -209,10 +177,9 @@ These are things that exist but behave incorrectly.
 
 ### P9. RandomWalkCave algorithm fidelity
 - **File:** `crates/gruid-rl/src/mapgen.rs`
-- Go starts each walk from a **random** position; Rust always starts from center.
-- Go's walk has `outDigs` escape logic for out-of-range wandering; Rust doesn't.
-- Port the Go logic more faithfully.
-- **Ref:** Go `rl/mapgen.go` `RandomWalkCave`
+- Core algorithm now matches Go (random start, outDigs).
+- Minor: Go's walk has `AtU` (unchecked) for perf; Rust uses checked access.
+- Low priority; consider adding `AtU` to rl::Grid first (P3).
 
 ### P10. Msg extensibility
 - **File:** `crates/gruid-core/src/messages.rs`
@@ -222,7 +189,7 @@ These are things that exist but behave incorrectly.
 
 ---
 
-## 🔵 Enhancement: Beyond the Go Original
+## 🟦 Enhancement: Beyond the Go Original
 
 These are improvements for the "modern take" that go beyond a 1:1 port.
 
@@ -252,16 +219,13 @@ These are improvements for the "modern take" that go beyond a 1:1 port.
 ## Dependency Graph
 
 ```
-C1 (grid coords) ──→ C3 (FOV) ──→ M3 (multi-source FOV)
-       │                │
-       ├──→ C4 (countWalls) ──→ M1 (vaults)
-       │                        │
-       └──→ M6-M8 (UI widgets)  └──→ M2 (KeepCC)
-
-C2 (JPS 4-way) ── standalone fix
-
 M9 (Sub effects) ── standalone fix
 M10 (recording) ──→ M5 (replay widget)
+
+M1 (vaults) ── standalone
+M2 (KeepCC) ── depends on gruid-paths CC (already works)
+
+M6-M8 (UI widgets) ── standalone, can be done in parallel
 ```
 
-**Recommended order:** C1 → C4 → C3 → C2 → M9 → M10 → M1 → M2 → M3-M4 → M5 → M6-M8 → P1-P10
+**Recommended order:** M9 → M10 → M1 → M2 → M5 → M6–M8 → P1–P10
