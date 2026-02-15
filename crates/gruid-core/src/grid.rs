@@ -9,6 +9,7 @@
 //! `grid.set(Point::new(0,0), c)` writes to position (5,5) in the underlying buffer.
 
 use std::cell::RefCell;
+use std::fmt;
 use std::rc::Rc;
 
 use crate::cell::Cell;
@@ -200,6 +201,63 @@ impl Grid {
         Point::new(sw, sh)
     }
 
+    /// Resize the grid to the given dimensions.
+    ///
+    /// Creates a new backing buffer of the requested size, copies cells from
+    /// the old grid that fall within the overlapping region, and fills any
+    /// newly-exposed cells with `Cell::default()` (a space). If the existing
+    /// backing buffer is large enough, it is reused. The grid's slice offset
+    /// and bounds are reset to cover the full new grid.
+    ///
+    /// Matches Go gruid's `Grid.Resize` semantics.
+    pub fn resize(&mut self, width: i32, height: i32) {
+        let old_size = self.size();
+        let ow = old_size.x;
+        let oh = old_size.y;
+        if ow == width && oh == height {
+            return;
+        }
+        if width <= 0 || height <= 0 {
+            self.bounds.max = self.bounds.min;
+            return;
+        }
+        let new_w = width as usize;
+        let new_h = height as usize;
+
+        // Check if the underlying buffer is large enough to reuse.
+        {
+            let buf = self.buffer.borrow();
+            let need_w = (self.bounds.min.x as usize) + new_w;
+            let need_h = (self.bounds.min.y as usize) + new_h;
+            if need_w <= buf.width && need_h <= buf.height {
+                // Buffer is large enough — just adjust bounds.
+                drop(buf);
+                self.bounds.max = self.bounds.min.shift(width, height);
+                return;
+            }
+        }
+
+        // Need a new buffer. Create one, copy overlapping content.
+        let mut new_buf = GridBuffer::new(new_w, new_h);
+        {
+            let old_buf = self.buffer.borrow();
+            let copy_w = (ow.min(width)) as usize;
+            let copy_h = (oh.min(height)) as usize;
+            let old_width = old_buf.width;
+            let old_min_x = self.bounds.min.x as usize;
+            let old_min_y = self.bounds.min.y as usize;
+            for dy in 0..copy_h {
+                let src_start = (old_min_y + dy) * old_width + old_min_x;
+                let dst_start = dy * new_w;
+                new_buf.cells[dst_start..dst_start + copy_w]
+                    .copy_from_slice(&old_buf.cells[src_start..src_start + copy_w]);
+            }
+        }
+
+        self.buffer = Rc::new(RefCell::new(new_buf));
+        self.bounds = Range::new(0, 0, width, height);
+    }
+
     /// Row-major iterator over `(Point, Cell)` pairs with **relative**
     /// coordinates.
     pub fn iter(&self) -> GridIter<'_> {
@@ -207,6 +265,40 @@ impl Grid {
             grid: self,
             rel_iter: self.range_().iter(),
         }
+    }
+
+    /// Row-major iterator over the [`Point`]s in the grid (relative
+    /// coordinates, no cells).
+    ///
+    /// This is a convenience wrapper around iterating over `self.range_()`.
+    pub fn points(&self) -> impl Iterator<Item = Point> {
+        self.range_().iter()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Display
+// ---------------------------------------------------------------------------
+
+impl fmt::Display for Grid {
+    /// Render the grid as a string of characters, one row per line.
+    ///
+    /// Each cell's `ch` is emitted, and rows are separated by `'\n'`.
+    /// Matches Go gruid's `Grid.String()` output.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let size = self.size();
+        let buf = self.buffer.borrow();
+        for y in 0..size.y {
+            for x in 0..size.x {
+                let abs_x = self.bounds.min.x + x;
+                let abs_y = self.bounds.min.y + y;
+                if let Some(i) = buf.index(abs_x, abs_y) {
+                    write!(f, "{}", buf.cells[i].ch)?;
+                }
+            }
+            writeln!(f)?;
+        }
+        Ok(())
     }
 }
 
@@ -404,5 +496,129 @@ mod tests {
         s.map_cells(|p, _| Cell::default().with_char(if p.x == 0 && p.y == 0 { 'O' } else { '.' }));
         assert_eq!(s.at(Point::new(0, 0)).ch, 'O');
         assert_eq!(s.at(Point::new(1, 0)).ch, '.');
+    }
+
+    // -----------------------------------------------------------------------
+    // resize tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn resize_same_size_is_noop() {
+        let mut g = Grid::new(4, 3);
+        g.set(Point::new(1, 1), Cell::default().with_char('A'));
+        g.resize(4, 3);
+        assert_eq!(g.size(), Point::new(4, 3));
+        assert_eq!(g.at(Point::new(1, 1)).ch, 'A');
+    }
+
+    #[test]
+    fn resize_grow_preserves_content() {
+        let mut g = Grid::new(3, 2);
+        g.set(Point::new(0, 0), Cell::default().with_char('X'));
+        g.set(Point::new(2, 1), Cell::default().with_char('Y'));
+        g.resize(5, 4);
+        assert_eq!(g.size(), Point::new(5, 4));
+        // Old content preserved.
+        assert_eq!(g.at(Point::new(0, 0)).ch, 'X');
+        assert_eq!(g.at(Point::new(2, 1)).ch, 'Y');
+        // New cells are default (space).
+        assert_eq!(g.at(Point::new(3, 0)).ch, ' ');
+        assert_eq!(g.at(Point::new(0, 3)).ch, ' ');
+    }
+
+    #[test]
+    fn resize_shrink_preserves_overlap() {
+        let mut g = Grid::new(5, 5);
+        g.set(Point::new(1, 1), Cell::default().with_char('K'));
+        g.set(Point::new(4, 4), Cell::default().with_char('Z'));
+        g.resize(3, 3);
+        assert_eq!(g.size(), Point::new(3, 3));
+        // (1,1) is still inside the new grid.
+        assert_eq!(g.at(Point::new(1, 1)).ch, 'K');
+        // (4,4) is outside bounds now.
+        assert_eq!(g.at(Point::new(4, 4)), Cell::default());
+    }
+
+    #[test]
+    fn resize_to_zero_produces_empty() {
+        let mut g = Grid::new(3, 3);
+        g.resize(0, 0);
+        assert_eq!(g.size(), Point::new(0, 0));
+    }
+
+    #[test]
+    fn resize_grow_width_only() {
+        let mut g = Grid::new(2, 2);
+        g.set(Point::new(0, 0), Cell::default().with_char('A'));
+        g.set(Point::new(1, 1), Cell::default().with_char('B'));
+        g.resize(4, 2);
+        assert_eq!(g.size(), Point::new(4, 2));
+        assert_eq!(g.at(Point::new(0, 0)).ch, 'A');
+        assert_eq!(g.at(Point::new(1, 1)).ch, 'B');
+        assert_eq!(g.at(Point::new(2, 0)).ch, ' ');
+    }
+
+    #[test]
+    fn resize_grow_height_only() {
+        let mut g = Grid::new(2, 2);
+        g.set(Point::new(0, 0), Cell::default().with_char('A'));
+        g.set(Point::new(1, 1), Cell::default().with_char('B'));
+        g.resize(2, 5);
+        assert_eq!(g.size(), Point::new(2, 5));
+        assert_eq!(g.at(Point::new(0, 0)).ch, 'A');
+        assert_eq!(g.at(Point::new(1, 1)).ch, 'B');
+        assert_eq!(g.at(Point::new(0, 4)).ch, ' ');
+    }
+
+    // -----------------------------------------------------------------------
+    // Display test
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn display_output() {
+        let g = Grid::new(3, 2);
+        g.set(Point::new(0, 0), Cell::default().with_char('A'));
+        g.set(Point::new(1, 0), Cell::default().with_char('B'));
+        g.set(Point::new(2, 0), Cell::default().with_char('C'));
+        g.set(Point::new(0, 1), Cell::default().with_char('D'));
+        g.set(Point::new(1, 1), Cell::default().with_char('E'));
+        g.set(Point::new(2, 1), Cell::default().with_char('F'));
+        let s = format!("{}", g);
+        assert_eq!(s, "ABC\nDEF\n");
+    }
+
+    #[test]
+    fn display_slice() {
+        let g = Grid::new(4, 4);
+        g.fill(Cell::default().with_char('.'));
+        g.set(Point::new(1, 1), Cell::default().with_char('X'));
+        let s = g.slice(Range::new(1, 1, 3, 3));
+        let out = format!("{}", s);
+        assert_eq!(out, "X.\n..\n");
+    }
+
+    // -----------------------------------------------------------------------
+    // points() test
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn points_iterator() {
+        let g = Grid::new(3, 2);
+        let pts: Vec<Point> = g.points().collect();
+        assert_eq!(pts.len(), 6);
+        assert_eq!(pts[0], Point::new(0, 0));
+        assert_eq!(pts[1], Point::new(1, 0));
+        assert_eq!(pts[5], Point::new(2, 1));
+    }
+
+    #[test]
+    fn points_on_slice() {
+        let g = Grid::new(10, 10);
+        let s = g.slice(Range::new(3, 3, 6, 5));
+        let pts: Vec<Point> = s.points().collect();
+        // 3x2 slice -> 6 points, all relative
+        assert_eq!(pts.len(), 6);
+        assert_eq!(pts[0], Point::new(0, 0));
+        assert_eq!(pts[5], Point::new(2, 1));
     }
 }

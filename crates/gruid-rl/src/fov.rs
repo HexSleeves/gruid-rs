@@ -324,16 +324,22 @@ impl FOV {
         self.lighted.iter().copied()
     }
 
-    /// Return the previous position in the light ray to `to`.
+    /// Return the previous position in the light ray to `to`,
+    /// as computed in the last `vision_map` call.
+    ///
+    /// Returns `Some(LightNode)` with the parent position and accumulated
+    /// cost (matching Go's `FOV.From`), or `None` if unreachable.
     pub fn from(&self, lt: &impl Lighter, to: Point) -> Option<LightNode> {
         self.at(to)?;
         let ln = self.from_internal(lt, to);
         if ln.cost == 0 {
             return None;
         }
+        // `from_internal` already returns stored cost = parent_stored_cost + lt.cost(src, parent, to).
+        // Subtract 1 to convert from stored (1-based) to actual (0-based) cost.
         Some(LightNode {
             pos: ln.pos,
-            cost: ln.cost - 1 + lt.cost(self.src, ln.pos, to),
+            cost: ln.cost - 1,
         })
     }
 
