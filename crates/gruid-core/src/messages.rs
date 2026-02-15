@@ -177,6 +177,11 @@ pub enum Msg {
     Init,
     /// Request to quit.
     Quit,
+    /// Timer tick (used internally by replay and effects).
+    Tick {
+        /// Opaque frame identifier for the tick's origin.
+        frame: usize,
+    },
 }
 
 impl std::fmt::Display for Msg {
@@ -219,6 +224,7 @@ impl std::fmt::Display for Msg {
                 height,
                 time.elapsed().as_secs()
             ),
+            Self::Tick { frame } => write!(f, "Tick {{ frame: {} }}", frame),
         }
     }
 }
