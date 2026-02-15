@@ -11,6 +11,10 @@ use gruid_core::grid::{Frame, FrameCell, Grid};
 use gruid_core::messages::{Key, Msg};
 use gruid_core::recording::FrameDecoder;
 
+/// Private tick message for replay auto-advance.
+#[derive(Debug, Clone, Copy)]
+struct ReplayTick(usize);
+
 // ---------------------------------------------------------------------------
 // Key bindings
 // ---------------------------------------------------------------------------
@@ -287,7 +291,7 @@ impl<R: Read> Replay<R> {
         let fidx = self.fidx;
         Some(Effect::Cmd(Box::new(move || {
             std::thread::sleep(Duration::from_millis(delay_ms));
-            Some(Msg::Tick { frame: fidx })
+            Some(Msg::custom(ReplayTick(fidx)))
         })))
     }
 
@@ -324,8 +328,9 @@ impl<R: Read> Replay<R> {
                     self.action = ReplayAction::Backward;
                 }
             }
-            Msg::Tick { frame } => {
-                if self.auto_play && self.fidx == frame {
+            _ if msg.downcast_ref::<ReplayTick>().is_some() => {
+                let tick = msg.downcast_ref::<ReplayTick>().unwrap();
+                if self.auto_play && self.fidx == tick.0 {
                     self.action = ReplayAction::Next;
                 }
             }

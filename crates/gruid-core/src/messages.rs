@@ -1,5 +1,7 @@
 //! Input events: [`Msg`], [`Key`], [`MouseAction`], [`ModMask`].
 
+use std::any::Any;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::geom::Point;
@@ -177,11 +179,15 @@ pub enum Msg {
     Init,
     /// Request to quit.
     Quit,
-    /// Timer tick (used internally by replay and effects).
-    Tick {
-        /// Opaque frame identifier for the tick's origin.
-        frame: usize,
-    },
+    /// User-defined message.
+    ///
+    /// Go gruid uses `interface{}` for `Msg`, so any type can be a message.
+    /// In Rust the core variants cover driver events; use `Custom` for
+    /// application-specific messages (timers, animation ticks, async
+    /// results, etc.).
+    ///
+    /// Downcast with `msg.downcast_ref::<YourType>()`.
+    Custom(Arc<dyn Any + Send + Sync>),
 }
 
 impl std::fmt::Display for Msg {
@@ -224,7 +230,7 @@ impl std::fmt::Display for Msg {
                 height,
                 time.elapsed().as_secs()
             ),
-            Self::Tick { frame } => write!(f, "Tick {{ frame: {} }}", frame),
+            Self::Custom(_) => write!(f, "Custom(..)"),
         }
     }
 }
@@ -245,6 +251,37 @@ impl Msg {
             key,
             modifiers,
             time: Instant::now(),
+        }
+    }
+
+    /// Create a custom message wrapping any `Send + Sync + 'static` value.
+    ///
+    /// This is the Rust equivalent of Go gruid's `Msg = interface{}`.
+    /// Use it for application-specific messages: timers, animation ticks,
+    /// async results, inter-widget communication, etc.
+    ///
+    /// ```ignore
+    /// struct MyTick(u32);
+    /// let msg = Msg::custom(MyTick(42));
+    /// ```
+    pub fn custom<T: Any + Send + Sync>(value: T) -> Self {
+        Self::Custom(Arc::new(value))
+    }
+
+    /// Try to downcast a `Custom` payload to a concrete type.
+    ///
+    /// Returns `None` if this is not a `Custom` variant or the type
+    /// doesn't match.
+    ///
+    /// ```ignore
+    /// if let Some(tick) = msg.downcast_ref::<MyTick>() {
+    ///     println!("tick {}", tick.0);
+    /// }
+    /// ```
+    pub fn downcast_ref<T: Any>(&self) -> Option<&T> {
+        match self {
+            Self::Custom(arc) => arc.downcast_ref::<T>(),
+            _ => None,
         }
     }
 }

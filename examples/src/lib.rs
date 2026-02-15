@@ -136,6 +136,10 @@ enum Mode {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
+/// Auto-move tick message.
+struct AutoMoveTick;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum PathAlgo {
     Astar,
     Jps,
@@ -561,7 +565,7 @@ impl gruid_core::app::Model for Game {
                                 self.auto_step = 1;
                                 // Trigger first step.
                                 return Some(Effect::Cmd(Box::new(|| {
-                                    Some(Msg::Tick { frame: 0 })
+                                    Some(Msg::custom(AutoMoveTick))
                                 })));
                             }
                         }
@@ -571,7 +575,7 @@ impl gruid_core::app::Model for Game {
             }
 
             // ---- Timer tick for auto-move ----
-            Msg::Tick { .. } => {
+            _ if msg.downcast_ref::<AutoMoveTick>().is_some() => {
                 if self.auto_step < self.auto_path.len() {
                     let next = self.auto_path[self.auto_step];
                     let dx = next.x - self.player.x;
@@ -582,7 +586,7 @@ impl gruid_core::app::Model for Game {
                             // Schedule next step.
                             return Some(Effect::Cmd(Box::new(|| {
                                 std::thread::sleep(std::time::Duration::from_millis(60));
-                                Some(Msg::Tick { frame: 0 })
+                                Some(Msg::custom(AutoMoveTick))
                             })));
                         }
                     }
