@@ -174,9 +174,7 @@ impl Menu {
                     }
                 }
             }
-            Msg::Mouse {
-                action, pos, ..
-            } => {
+            Msg::Mouse { action, pos, .. } => {
                 let inner = self.inner_range();
                 let rel = Point::new(pos.x - inner.min.x, pos.y - inner.min.y);
                 if inner.contains(pos) {
@@ -311,7 +309,7 @@ impl Menu {
         if ps == 0 {
             return 1;
         }
-        (self.entries.len() + ps - 1) / ps
+        self.entries.len().div_ceil(ps)
     }
 
     // -- private helpers --
@@ -335,9 +333,8 @@ impl Menu {
     }
 
     fn update_page_for_active(&mut self) {
-        let ps = self.page_size();
-        if ps > 0 {
-            self.page = self.active / ps;
+        if let Some(page) = self.active.checked_div(self.page_size()) {
+            self.page = page;
         }
     }
 
@@ -511,7 +508,10 @@ mod tests {
         menu.set_active(3);
         assert_eq!(menu.active(), 3);
 
-        menu.set_entries(vec![MenuEntry::new(StyledText::new("New", Style::default()))]);
+        menu.set_entries(vec![MenuEntry::new(StyledText::new(
+            "New",
+            Style::default(),
+        ))]);
         assert_eq!(menu.active(), 0);
         assert_eq!(menu.page(), 0);
     }

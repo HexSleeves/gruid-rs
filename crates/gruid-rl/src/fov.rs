@@ -147,10 +147,7 @@ impl FOV {
         self.src = src;
         let src_idx = self.idx(src);
         self.costs[src_idx] = 1; // cost 0 stored as 1
-        self.lighted.push(LightNode {
-            pos: src,
-            cost: 0,
-        });
+        self.lighted.push(LightNode { pos: src, cost: 0 });
 
         let max_cost = lt.max_cost(src);
         for d in 1..=max_cost {
@@ -264,11 +261,7 @@ impl FOV {
             return None;
         }
         let cost = self.costs[self.idx(p)];
-        if cost <= 0 {
-            None
-        } else {
-            Some(cost - 1)
-        }
+        if cost <= 0 { None } else { Some(cost - 1) }
     }
 
     /// Iterate over all lighted nodes from the last `vision_map` call.
@@ -278,9 +271,7 @@ impl FOV {
 
     /// Return the previous position in the light ray to `to`.
     pub fn from(&self, lt: &impl Lighter, to: Point) -> Option<LightNode> {
-        if self.at(to).is_none() {
-            return None;
-        }
+        self.at(to)?;
         let ln = self.from_internal(lt, to);
         if ln.cost == 0 {
             return None;
@@ -293,9 +284,7 @@ impl FOV {
 
     /// Return a full light ray from source to `to`.
     pub fn ray(&mut self, lt: &impl Lighter, to: Point) -> Option<&[LightNode]> {
-        if self.at(to).is_none() {
-            return None;
-        }
+        self.at(to)?;
         self.ray_cache.clear();
         let mut cur = to;
         while cur != self.src {
@@ -365,7 +354,7 @@ impl FOV {
 
     fn light_update(&mut self, lt: &impl Lighter, to: Point) {
         let n = self.from_internal(lt, to);
-        if n.cost <= 0 || n.cost >= i32::MAX {
+        if n.cost <= 0 || n.cost == i32::MAX {
             return;
         }
         let idx = self.idx(to);
@@ -502,15 +491,14 @@ impl FOV {
             for ti in 0..tiles_len {
                 let tile = self.tiles_buf[ti];
                 let wall = !passable(qt.transform(tile));
-                if wall || r.is_symmetric(tile) {
-                    if diags
+                if (wall || r.is_symmetric(tile))
+                    && (diags
                         || (tile.x <= 1 && tile.y == 0)
                         || (tile.x > 1 && passable(qt.transform(tile.shift(-1, 0))))
                         || (tile.y >= 0 && passable(qt.transform(tile.shift(0, -1))))
-                        || (tile.y <= 0 && passable(qt.transform(tile.shift(0, 1))))
-                    {
-                        self.reveal(qt, tile);
-                    }
+                        || (tile.y <= 0 && passable(qt.transform(tile.shift(0, 1)))))
+                {
+                    self.reveal(qt, tile);
                 }
                 if ptile.x == unreachable {
                     ptile = tile;
@@ -522,9 +510,7 @@ impl FOV {
                     if !diags {
                         if tile.x < dmax && !passable(qt.transform(tile.shift(1, 0))) {
                             r.slope_start = slope_square(tile.shift(1, 0));
-                        } else if tile.x > 1
-                            && !passable(qt.transform(tile.shift(-1, 0)))
-                        {
+                        } else if tile.x > 1 && !passable(qt.transform(tile.shift(-1, 0))) {
                             r.slope_start = slope_diamond(tile.shift(-1, 1));
                         } else {
                             r.slope_start = slope_diamond(tile);
@@ -540,9 +526,7 @@ impl FOV {
                     if !diags {
                         if tile.x < dmax && !passable(qt.transform(ptile.shift(1, 0))) {
                             nr.slope_end = slope_square(tile.shift(1, 0));
-                        } else if ptile.x > 1
-                            && !passable(qt.transform(ptile.shift(-1, 0)))
-                        {
+                        } else if ptile.x > 1 && !passable(qt.transform(ptile.shift(-1, 0))) {
                             nr.slope_end = slope_diamond(ptile.shift(-1, 0));
                         } else {
                             nr.slope_end = slope_diamond(tile);

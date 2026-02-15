@@ -261,7 +261,12 @@ impl Pager {
     }
 
     fn max_scroll_x(&self) -> i32 {
-        let max_line_len = self.lines.iter().map(|l| l.content().len()).max().unwrap_or(0) as i32;
+        let max_line_len = self
+            .lines
+            .iter()
+            .map(|l| l.content().len())
+            .max()
+            .unwrap_or(0) as i32;
         (max_line_len - self.visible_width()).max(0)
     }
 

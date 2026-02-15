@@ -240,10 +240,7 @@ mod tests {
         let mut buf = Vec::new();
         FrameEncoder::new(&mut buf).encode(&frame).unwrap();
 
-        let decoded = FrameDecoder::new(buf.as_slice())
-            .decode()
-            .unwrap()
-            .unwrap();
+        let decoded = FrameDecoder::new(buf.as_slice()).decode().unwrap().unwrap();
 
         assert_eq!(decoded.width, 40);
         assert_eq!(decoded.height, 20);
@@ -255,16 +252,14 @@ mod tests {
         assert_eq!(decoded.cells[0].cell.ch, '@');
         assert_eq!(decoded.cells[0].cell.style.fg, Color::from_rgb(255, 0, 0));
         assert_eq!(decoded.cells[0].cell.style.bg, Color::from_rgb(0, 0, 255));
-        assert!(decoded.cells[0]
-            .cell
-            .style
-            .attrs
-            .contains(AttrMask::BOLD));
-        assert!(decoded.cells[0]
-            .cell
-            .style
-            .attrs
-            .contains(AttrMask::UNDERLINE));
+        assert!(decoded.cells[0].cell.style.attrs.contains(AttrMask::BOLD));
+        assert!(
+            decoded.cells[0]
+                .cell
+                .style
+                .attrs
+                .contains(AttrMask::UNDERLINE)
+        );
 
         // Second cell — default
         assert_eq!(decoded.cells[1].pos, Point::new(0, 0));
@@ -298,7 +293,10 @@ mod tests {
             let decoded = dec.decode().unwrap().unwrap();
             assert_eq!(decoded.time_ms, expected.time_ms, "frame {i}");
             assert_eq!(decoded.cells.len(), 1, "frame {i}");
-            assert_eq!(decoded.cells[0].cell.ch, expected.cells[0].cell.ch, "frame {i}");
+            assert_eq!(
+                decoded.cells[0].cell.ch, expected.cells[0].cell.ch,
+                "frame {i}"
+            );
         }
         assert!(dec.decode().unwrap().is_none());
     }
@@ -317,10 +315,7 @@ mod tests {
 
         let mut buf = Vec::new();
         FrameEncoder::new(&mut buf).encode(&frame).unwrap();
-        let decoded = FrameDecoder::new(buf.as_slice())
-            .decode()
-            .unwrap()
-            .unwrap();
+        let decoded = FrameDecoder::new(buf.as_slice()).decode().unwrap().unwrap();
         assert_eq!(decoded.cells[0].cell.ch, '\u{1F600}');
     }
 }

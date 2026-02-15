@@ -263,13 +263,7 @@ mod tests {
     fn draw_into_grid() {
         let v = Vault::new(ROOM).unwrap();
         let grid = Grid::new(10, 10);
-        let sub = v.draw(&grid, |ch| {
-            if ch == '#' {
-                Cell(1)
-            } else {
-                Cell(0)
-            }
-        });
+        let sub = v.draw(&grid, |ch| if ch == '#' { Cell(1) } else { Cell(0) });
         assert_eq!(sub.size(), Point::new(4, 4));
         assert_eq!(grid.at(Point::new(0, 0)), Some(Cell(1)));
         assert_eq!(grid.at(Point::new(1, 1)), Some(Cell(0)));

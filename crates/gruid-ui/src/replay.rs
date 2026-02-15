@@ -166,9 +166,7 @@ impl<R: Read> Replay<R> {
                 self.apply_next();
             }
         } else {
-            while self.fidx > 1
-                && (self.frames[self.fidx - 1].time_ms as i64) > target_time
-            {
+            while self.fidx > 1 && (self.frames[self.fidx - 1].time_ms as i64) > target_time {
                 self.fidx -= 1;
                 self.apply_previous();
             }
@@ -367,8 +365,7 @@ mod tests {
                 let frame = Frame {
                     cells: vec![FrameCell {
                         pos: Point::new(i, 0),
-                        cell: Cell::default()
-                            .with_char(char::from(b'A' + i as u8)),
+                        cell: Cell::default().with_char(char::from(b'A' + i as u8)),
                     }],
                     width: 10,
                     height: 5,
