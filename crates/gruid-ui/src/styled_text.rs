@@ -187,30 +187,28 @@ impl StyledText {
             .collect()
     }
 
-    /// Draw the styled text into the given grid starting at the grid's
-    /// min bound.  Returns the range of cells that were written.
+    /// Draw the styled text into the given grid starting at (0,0).
+    /// Returns the range of cells that were written (relative coords).
     pub fn draw(&self, grid: &Grid) -> Range {
-        let bounds = grid.bounds();
         let mut min_x = i32::MAX;
         let mut min_y = i32::MAX;
         let mut max_x = i32::MIN;
         let mut max_y = i32::MIN;
         let mut any = false;
         self.iter(|p, cell| {
-            let abs = Point::new(bounds.min.x + p.x, bounds.min.y + p.y);
-            if grid.contains(abs) {
-                grid.set(abs, cell);
-                if !any || abs.x < min_x {
-                    min_x = abs.x;
+            if grid.contains(p) {
+                grid.set(p, cell);
+                if !any || p.x < min_x {
+                    min_x = p.x;
                 }
-                if !any || abs.y < min_y {
-                    min_y = abs.y;
+                if !any || p.y < min_y {
+                    min_y = p.y;
                 }
-                if abs.x + 1 > max_x {
-                    max_x = abs.x + 1;
+                if p.x + 1 > max_x {
+                    max_x = p.x + 1;
                 }
-                if abs.y + 1 > max_y {
-                    max_y = abs.y + 1;
+                if p.y + 1 > max_y {
+                    max_y = p.y + 1;
                 }
                 any = true;
             }

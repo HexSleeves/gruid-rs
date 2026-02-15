@@ -118,7 +118,7 @@ impl Pager {
         let inner_range = if let Some(ref box_decor) = self.box_ {
             box_decor.draw(grid)
         } else {
-            grid.bounds()
+            grid.range_()
         };
 
         let start = inner_range.min;

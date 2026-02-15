@@ -38,37 +38,34 @@ impl BoxDecor {
         }
     }
 
-    /// Draw the box border into the grid, using the full grid bounds.
-    /// Returns the inner range (the area inside the border).
+    /// Draw the box border into the grid, using relative coordinates.
+    /// Returns the inner range (relative, the area inside the border).
     pub fn draw(&self, grid: &Grid) -> Range {
-        let b = grid.bounds();
-        let w = b.width();
-        let h = b.height();
+        let w = grid.width();
+        let h = grid.height();
         if w < 2 || h < 2 {
-            return b;
+            return grid.range_();
         }
 
-        let x0 = b.min.x;
-        let y0 = b.min.y;
-        let x1 = b.max.x;
-        let y1 = b.max.y;
+        let x1 = w;
+        let y1 = h;
         let s = self.style;
 
         // Corners
-        set(grid, Point::new(x0, y0), '\u{250c}', s);
-        set(grid, Point::new(x1 - 1, y0), '\u{2510}', s);
-        set(grid, Point::new(x0, y1 - 1), '\u{2514}', s);
+        set(grid, Point::new(0, 0), '\u{250c}', s);
+        set(grid, Point::new(x1 - 1, 0), '\u{2510}', s);
+        set(grid, Point::new(0, y1 - 1), '\u{2514}', s);
         set(grid, Point::new(x1 - 1, y1 - 1), '\u{2518}', s);
 
         // Top and bottom borders
-        for x in (x0 + 1)..(x1 - 1) {
-            set(grid, Point::new(x, y0), '\u{2500}', s);
+        for x in 1..(x1 - 1) {
+            set(grid, Point::new(x, 0), '\u{2500}', s);
             set(grid, Point::new(x, y1 - 1), '\u{2500}', s);
         }
 
         // Left and right borders
-        for y in (y0 + 1)..(y1 - 1) {
-            set(grid, Point::new(x0, y), '\u{2502}', s);
+        for y in 1..(y1 - 1) {
+            set(grid, Point::new(0, y), '\u{2502}', s);
             set(grid, Point::new(x1 - 1, y), '\u{2502}', s);
         }
 
@@ -79,16 +76,16 @@ impl BoxDecor {
             let available = (w - 2).max(0);
             if title_len > 0 && available > 0 {
                 let start_x = match self.align_title {
-                    Alignment::Left => x0 + 1,
-                    Alignment::Right => (x1 - 1 - title_len).max(x0 + 1),
-                    Alignment::Center => (x0 + (w - title_len) / 2).max(x0 + 1),
+                    Alignment::Left => 1,
+                    Alignment::Right => (x1 - 1 - title_len).max(1),
+                    Alignment::Center => ((w - title_len) / 2).max(1),
                 };
                 let mut x = start_x;
                 for ch in title_text.chars() {
                     if x >= x1 - 1 {
                         break;
                     }
-                    set(grid, Point::new(x, y0), ch, self.title.style());
+                    set(grid, Point::new(x, 0), ch, self.title.style());
                     x += 1;
                 }
             }
@@ -101,9 +98,9 @@ impl BoxDecor {
             let available = (w - 2).max(0);
             if footer_len > 0 && available > 0 {
                 let start_x = match self.align_footer {
-                    Alignment::Left => x0 + 1,
-                    Alignment::Right => (x1 - 1 - footer_len).max(x0 + 1),
-                    Alignment::Center => (x0 + (w - footer_len) / 2).max(x0 + 1),
+                    Alignment::Left => 1,
+                    Alignment::Right => (x1 - 1 - footer_len).max(1),
+                    Alignment::Center => ((w - footer_len) / 2).max(1),
                 };
                 let mut x = start_x;
                 for ch in footer_text.chars() {
@@ -116,8 +113,8 @@ impl BoxDecor {
             }
         }
 
-        // Inner range
-        Range::new(x0 + 1, y0 + 1, x1 - 1, y1 - 1)
+        // Inner range (relative)
+        Range::new(1, 1, x1 - 1, y1 - 1)
     }
 }
 

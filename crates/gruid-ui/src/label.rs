@@ -35,7 +35,7 @@ impl Label {
             let inner_range = box_decor.draw(grid);
             let inner_grid = grid.slice(inner_range);
             self.content.draw(&inner_grid);
-            grid.bounds()
+            grid.range_()
         } else {
             self.content.draw(grid)
         }

@@ -70,7 +70,7 @@ impl<R: Rng> MapGen<R> {
 
     /// Generate a cave using random walk.
     ///
-    /// Starting from the center of the grid, perform `walks` random walks.
+    /// Performs `walks` random walks starting from random positions.
     /// Each walk carves out cells by setting them to `cell`.
     /// The walk continues until the proportion of `cell` cells reaches
     /// `fill_pct` (0.0–1.0) of the total area.
@@ -83,41 +83,64 @@ impl<R: Rng> MapGen<R> {
         fill_pct: f64,
         walks: usize,
     ) -> usize {
+        let fill_pct = fill_pct.clamp(0.01, 0.9);
         let sz = self.grid.size();
         let w = sz.x;
         let h = sz.y;
         let total = (w * h) as usize;
         let target = (total as f64 * fill_pct) as usize;
-        let bounds = self.grid.bounds();
-        let mut carved = 0usize;
+        let already_dug = self.grid.count(cell);
+        let mut digs = already_dug;
+        let wlk_max = if walks > 0 {
+            (target - already_dug) / walks
+        } else {
+            target - already_dug
+        };
 
-        // Start at center.
-        let start = Point::new(bounds.min.x + w / 2, bounds.min.y + h / 2);
+        while digs < target {
+            // Start each walk from a random position (matching Go).
+            let mut pos = Point::new(
+                self.rng.random_range(0..w),
+                self.rng.random_range(0..h),
+            );
+            if self.grid.at(pos) == Some(cell) {
+                continue;
+            }
+            self.grid.set(pos, cell);
+            digs += 1;
+            let mut wlk_digs = 1;
+            let mut out_digs = 0;
+            let mut last_in_range = pos;
 
-        for _ in 0..walks {
-            let mut pos = start;
-            let step_limit = total * 4; // safety limit per walk
-
-            for _ in 0..step_limit {
-                if carved >= target {
-                    return carved;
+            while digs < target && wlk_digs <= wlk_max {
+                let q = walker.neighbor(pos, &mut self.rng);
+                // If current pos is out of range but next is in range and
+                // not yet dug, snap back to last known good position.
+                if !self.grid.contains(pos) && self.grid.contains(q) {
+                    if self.grid.at(q) != Some(cell) {
+                        pos = last_in_range;
+                        continue;
+                    }
                 }
-
-                if self.grid.at(pos) != Some(cell) {
-                    self.grid.set(pos, cell);
-                    carved += 1;
+                pos = q;
+                if self.grid.contains(pos) {
+                    if self.grid.at(pos) != Some(cell) {
+                        self.grid.set(pos, cell);
+                        digs += 1;
+                        wlk_digs += 1;
+                    }
+                    last_in_range = pos;
+                } else {
+                    out_digs += 1;
                 }
-
-                // Walk to a neighbor, clamped to bounds.
-                let next = walker.neighbor(pos, &mut self.rng);
-                if bounds.contains(next) {
-                    pos = next;
+                if out_digs > wlk_max || out_digs > 150 {
+                    out_digs = 0;
+                    pos = last_in_range;
                 }
-                // else stay put
             }
         }
 
-        carved
+        digs - already_dug
     }
 
     /// Generate a cave using cellular automata.
@@ -134,72 +157,74 @@ impl<R: Rng> MapGen<R> {
         wall_init_pct: f64,
         rules: &[CellularAutomataRule],
     ) -> usize {
-        let bounds = self.grid.bounds();
+        let wall_init_pct = wall_init_pct.clamp(0.1, 0.9);
         let sz = self.grid.size();
         let w = sz.x;
         let h = sz.y;
 
-        // Step 1: random initialization.
-        for p in bounds.iter() {
-            let r: f64 = self.rng.random();
-            if r < wall_init_pct {
-                self.grid.set(p, wall);
-            } else {
-                self.grid.set(p, ground);
+        // Step 1: random initialization (using relative coords).
+        for y in 0..h {
+            for x in 0..w {
+                let r: f64 = self.rng.random();
+                let c = if r < wall_init_pct { wall } else { ground };
+                self.grid.set(Point::new(x, y), c);
             }
         }
 
         // Step 2: apply rules.
-        // We need a scratch buffer for the next generation.
         let mut scratch = vec![Cell::default(); (w * h) as usize];
 
         for rule in rules {
-            // Determine which sub-checks are active.
-            // w_cutoff1 <= 0 means "disable W(1) check" (never triggers).
-            // w_cutoff2 >= 25 means "disable W(2) check" (the 2-ring has at
-            //   most 24 cells, so `walls2 <= 25` would always be true —
-            //   matching the Go original's optimization).
             let use_w1 = rule.w_cutoff1 > 0;
             let use_w2 = rule.w_cutoff2 < 25;
 
             for _ in 0..rule.reps {
-                for p in bounds.iter() {
-                    let idx = ((p.y - bounds.min.y) * w + (p.x - bounds.min.x)) as usize;
+                for y in 0..h {
+                    for x in 0..w {
+                        let p = Point::new(x, y);
+                        let idx = (y * w + x) as usize;
 
-                    let is_wall = match (use_w1, use_w2) {
-                        (true, true) => {
-                            let w1 = self.count_walls_ring(p, 1, wall, rule.walls_out_of_range);
-                            let w2 = self.count_walls_ring(p, 2, wall, rule.walls_out_of_range);
-                            w1 >= rule.w_cutoff1 || w2 <= rule.w_cutoff2
-                        }
-                        (true, false) => {
-                            let w1 = self.count_walls_ring(p, 1, wall, rule.walls_out_of_range);
-                            w1 >= rule.w_cutoff1
-                        }
-                        (false, true) => {
-                            let w2 = self.count_walls_ring(p, 2, wall, rule.walls_out_of_range);
-                            w2 <= rule.w_cutoff2
-                        }
-                        (false, false) => false, // both disabled → ground
-                    };
+                        let is_wall = match (use_w1, use_w2) {
+                            (true, true) => {
+                                let w1 =
+                                    self.count_walls(p, 1, wall, rule.walls_out_of_range);
+                                let w2 =
+                                    self.count_walls(p, 2, wall, rule.walls_out_of_range);
+                                w1 >= rule.w_cutoff1 || w2 <= rule.w_cutoff2
+                            }
+                            (true, false) => {
+                                let w1 =
+                                    self.count_walls(p, 1, wall, rule.walls_out_of_range);
+                                w1 >= rule.w_cutoff1
+                            }
+                            (false, true) => {
+                                let w2 =
+                                    self.count_walls(p, 2, wall, rule.walls_out_of_range);
+                                w2 <= rule.w_cutoff2
+                            }
+                            (false, false) => false,
+                        };
 
-                    scratch[idx] = if is_wall { wall } else { ground };
+                        scratch[idx] = if is_wall { wall } else { ground };
+                    }
                 }
 
                 // Copy scratch back to grid.
-                for p in bounds.iter() {
-                    let idx = ((p.y - bounds.min.y) * w + (p.x - bounds.min.x)) as usize;
-                    self.grid.set(p, scratch[idx]);
+                for y in 0..h {
+                    for x in 0..w {
+                        let idx = (y * w + x) as usize;
+                        self.grid.set(Point::new(x, y), scratch[idx]);
+                    }
                 }
             }
         }
 
-        // Count ground cells.
         self.grid.count(ground)
     }
 
     /// Count wall cells within Chebyshev distance `radius` of `center`.
-    fn count_walls_ring(
+    /// Matches Go: includes the center cell itself in the count.
+    fn count_walls(
         &self,
         center: Point,
         radius: i32,
@@ -207,26 +232,26 @@ impl<R: Rng> MapGen<R> {
         walls_out_of_range: bool,
     ) -> i32 {
         let mut count = 0;
-        for dy in -radius..=radius {
-            for dx in -radius..=radius {
-                if dx == 0 && dy == 0 {
-                    continue;
-                }
-                let p = Point::new(center.x + dx, center.y + dy);
-                match self.grid.at(p) {
-                    Some(c) => {
-                        if c == wall {
-                            count += 1;
-                        }
-                    }
-                    None => {
-                        if walls_out_of_range {
-                            count += 1;
-                        }
-                    }
-                }
-            }
+        let rg = gruid_core::Range::new(
+            center.x - radius,
+            center.y - radius,
+            center.x + radius + 1,
+            center.y + radius + 1,
+        );
+        let grid_rg = self.grid.range_();
+
+        if walls_out_of_range {
+            let orig_size = rg.size();
+            let clamped = rg.intersect(grid_rg);
+            let clamped_size = clamped.size();
+            // Out-of-range cells count as walls.
+            count += orig_size.x * orig_size.y - clamped_size.x * clamped_size.y;
         }
+
+        // Count in-range walls using a slice of the grid.
+        let clamped = rg.intersect(grid_rg);
+        let sub = self.grid.slice(clamped);
+        count += sub.count(wall) as i32;
         count
     }
 }
@@ -252,9 +277,19 @@ mod tests {
         let mut mg = MapGen::with_grid(grid, rand::rng());
         let rules = vec![CellularAutomataRule::default()];
         let ground = mg.cellular_automata_cave(Cell(1), Cell(0), 0.45, &rules);
-        // Should have some ground and some wall.
         assert!(ground > 0);
         let total = 30 * 30;
         assert!(ground < total);
+    }
+
+    #[test]
+    fn test_count_walls_includes_center() {
+        // A 3x3 grid of all walls. countWalls at center with radius 1
+        // should count all 9 cells (including center).
+        let grid = Grid::new(3, 3);
+        grid.fill(Cell(1));
+        let mg = MapGen::with_grid(grid, rand::rng());
+        let count = mg.count_walls(Point::new(1, 1), 1, Cell(1), false);
+        assert_eq!(count, 9); // 3x3 = 9 including center
     }
 }
