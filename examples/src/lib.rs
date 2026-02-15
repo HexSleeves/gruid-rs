@@ -13,7 +13,7 @@ use gruid_core::{
 };
 use gruid_paths::{AstarPather, PathRange, Pather, WeightedPather};
 use gruid_rl::{
-    fov::{FOV, Lighter},
+    fov::{CircularLighter, FOV, FovShape, Lighter},
     grid::{Cell as RlCell, Grid as RlGrid},
     mapgen::{CellularAutomataRule, MapGen},
 };
@@ -52,6 +52,7 @@ Examine:     x to enter look mode, move cursor, ESC to exit
 Pathfinding: p to toggle path overlay
 Algorithm:   TAB to switch A* / JPS
 Dijkstra:    d to toggle distance heatmap
+FOV shape:   f to toggle square / circle
 Help:        ? to show this screen
 Quit:        q or ESC";
 
@@ -180,6 +181,7 @@ pub struct Game {
     show_path: bool,
     show_dijkstra: bool,
     path_algo: PathAlgo,
+    fov_shape: FovShape,
     path_cache: Vec<Point>,
     // Cursor / mouse
     cursor: Point,
@@ -271,6 +273,7 @@ impl Game {
             show_path: false,
             show_dijkstra: false,
             path_algo: PathAlgo::Astar,
+            fov_shape: FovShape::Square,
             path_cache: Vec::new(),
             cursor: player,
             mode: Mode::Play,
@@ -283,8 +286,16 @@ impl Game {
     }
 
     fn compute_fov(&mut self) {
-        let lighter = MapLighter { map: &self.map };
-        self.fov.vision_map(&lighter, self.player);
+        let base = MapLighter { map: &self.map };
+        match self.fov_shape {
+            FovShape::Square => {
+                self.fov.vision_map(&base, self.player);
+            }
+            FovShape::Circle => {
+                let circular = CircularLighter::new(base);
+                self.fov.vision_map(&circular, self.player);
+            }
+        }
         for ln in self.fov.iter_lighted() {
             let idx = (ln.pos.y * WIDTH + ln.pos.x) as usize;
             if idx < self.seen.len() {
@@ -526,6 +537,18 @@ impl gruid_core::app::Model for Game {
                                 self.recompute_path();
                             }
                         }
+                        Key::Char('f') => {
+                            self.fov_shape = match self.fov_shape {
+                                FovShape::Square => FovShape::Circle,
+                                FovShape::Circle => FovShape::Square,
+                            };
+                            self.compute_fov();
+                            let label = match self.fov_shape {
+                                FovShape::Square => "square",
+                                FovShape::Circle => "circle",
+                            };
+                            self.log(format!("FOV shape: {label}"));
+                        }
                         Key::Char('x') => {
                             self.mode = Mode::Look;
                             self.cursor = self.player;
@@ -735,8 +758,12 @@ impl gruid_core::app::Model for Game {
             Mode::Look => "[LOOK]",
             _ => "",
         };
+        let fov_tag = match self.fov_shape {
+            FovShape::Circle => "[FOV:○]",
+            FovShape::Square => "",
+        };
         let overlays = format!(
-            "{}{}",
+            "{}{}{}",
             if self.show_path {
                 match self.path_algo {
                     PathAlgo::Astar => "[A*]",
@@ -746,6 +773,7 @@ impl gruid_core::app::Model for Game {
                 ""
             },
             if self.show_dijkstra { "[DJKS]" } else { "" },
+            fov_tag,
         );
 
         let status = format!(
