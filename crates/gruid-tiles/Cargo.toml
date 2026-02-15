@@ -1,0 +1,12 @@
+[package]
+name = "gruid-tiles"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Tile rendering utilities for gruid graphical backends"
+
+[dependencies]
+gruid-core = { workspace = true }
+image = { version = "0.25", default-features = false, features = ["png"] }
+rusttype = "0.9"

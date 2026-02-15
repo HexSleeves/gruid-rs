@@ -1,0 +1,19 @@
+[package]
+name = "gruid-examples"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Examples for gruid"
+
+[dependencies]
+gruid-core = { workspace = true }
+gruid-crossterm = { workspace = true }
+gruid-paths = { workspace = true }
+gruid-rl = { workspace = true }
+gruid-ui = { workspace = true }
+rand = { workspace = true }
+
+[[bin]]
+name = "roguelike"
+path = "roguelike.rs"

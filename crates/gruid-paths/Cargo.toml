@@ -1,0 +1,15 @@
+[package]
+name = "gruid-paths"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Pathfinding algorithms for grid-based games"
+
+[dependencies]
+gruid-core = { workspace = true }
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "gruid-core/serde"]
