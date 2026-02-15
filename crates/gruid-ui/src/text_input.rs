@@ -170,10 +170,7 @@ impl TextInput {
                         let chars: Vec<char> = self.content.chars().collect();
                         let target = text_col.min(chars.len());
                         // Convert char position to byte offset
-                        self.cursor = chars[..target]
-                            .iter()
-                            .map(|c| c.len_utf8())
-                            .sum();
+                        self.cursor = chars[..target].iter().map(|c| c.len_utf8()).sum();
                     }
                 }
             }
@@ -289,7 +286,9 @@ impl TextInput {
     }
 
     fn prompt_char_len(&self) -> usize {
-        self.prompt.as_ref().map_or(0, |p| p.content().chars().count())
+        self.prompt
+            .as_ref()
+            .map_or(0, |p| p.content().chars().count())
     }
 
     fn compute_scroll(&self) -> usize {

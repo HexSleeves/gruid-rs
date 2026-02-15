@@ -17,9 +17,7 @@ use gruid_rl::{
     grid::{Cell as RlCell, Grid as RlGrid},
     mapgen::{CellularAutomataRule, MapGen},
 };
-use gruid_ui::{
-    BoxDecor, Pager, PagerAction, PagerConfig, PagerKeys, PagerStyle, StyledText,
-};
+use gruid_ui::{BoxDecor, Pager, PagerAction, PagerConfig, PagerKeys, PagerStyle, StyledText};
 use rand::{Rng, SeedableRng};
 
 pub const WIDTH: i32 = 80;
@@ -234,10 +232,7 @@ impl Game {
         let mut monsters = Vec::new();
         let mut attempts = 0;
         while monsters.len() < 8 && attempts < 500 {
-            let p = Point::new(
-                rng.random_range(0..WIDTH),
-                rng.random_range(0..MAP_HEIGHT),
-            );
+            let p = Point::new(rng.random_range(0..WIDTH), rng.random_range(0..MAP_HEIGHT));
             attempts += 1;
             if map.at(p) != Some(FLOOR)
                 || p == player
@@ -329,9 +324,7 @@ impl Game {
     }
 
     fn recompute_path(&mut self) {
-        self.path_cache = self
-            .find_path(self.player, self.cursor)
-            .unwrap_or_default();
+        self.path_cache = self.find_path(self.player, self.cursor).unwrap_or_default();
     }
 
     fn try_move(&mut self, dx: i32, dy: i32) -> bool {
@@ -387,7 +380,13 @@ impl Game {
             }
             // Move toward player using A*.
             let pather = MapPather { map: &self.map };
-            if let Some(path) = self.path_range.astar_path(&pather, mpos, player) {
+
+            if let Some(path) = if self.path_algo == PathAlgo::Jps {
+                self.path_range
+                    .jps_path(mpos, player, |p| self.map.at(p) == Some(FLOOR), false)
+            } else {
+                self.path_range.astar_path(&pather, mpos, player)
+            } {
                 if path.len() >= 2 {
                     let next = path[1];
                     let blocked = self
@@ -421,10 +420,7 @@ impl Game {
     fn open_help(&mut self) {
         let grid = Grid::new(WIDTH, HEIGHT);
         let box_ = BoxDecor {
-            title: StyledText::new(
-                " Help ",
-                Style::default().with_fg(COL_PLAYER),
-            ),
+            title: StyledText::new(" Help ", Style::default().with_fg(COL_PLAYER)),
             ..BoxDecor::new()
         };
         self.pager = Some(Pager::new(PagerConfig {
@@ -490,14 +486,30 @@ impl gruid_core::app::Model for Game {
                             return Some(Effect::End);
                         }
                         // Movement
-                        Key::ArrowUp | Key::Char('k') => { self.try_move(0, -1); }
-                        Key::ArrowDown | Key::Char('j') => { self.try_move(0, 1); }
-                        Key::ArrowLeft | Key::Char('h') => { self.try_move(-1, 0); }
-                        Key::ArrowRight | Key::Char('l') => { self.try_move(1, 0); }
-                        Key::Char('y') => { self.try_move(-1, -1); }
-                        Key::Char('u') => { self.try_move(1, -1); }
-                        Key::Char('b') => { self.try_move(-1, 1); }
-                        Key::Char('n') => { self.try_move(1, 1); }
+                        Key::ArrowUp | Key::Char('k') => {
+                            self.try_move(0, -1);
+                        }
+                        Key::ArrowDown | Key::Char('j') => {
+                            self.try_move(0, 1);
+                        }
+                        Key::ArrowLeft | Key::Char('h') => {
+                            self.try_move(-1, 0);
+                        }
+                        Key::ArrowRight | Key::Char('l') => {
+                            self.try_move(1, 0);
+                        }
+                        Key::Char('y') => {
+                            self.try_move(-1, -1);
+                        }
+                        Key::Char('u') => {
+                            self.try_move(1, -1);
+                        }
+                        Key::Char('b') => {
+                            self.try_move(-1, 1);
+                        }
+                        Key::Char('n') => {
+                            self.try_move(1, 1);
+                        }
                         // Wait
                         Key::Char('.') | Key::Space => {
                             self.turns += 1;
@@ -616,6 +628,14 @@ impl gruid_core::app::Model for Game {
                     self.auto_path.clear();
                     self.auto_step = 0;
                 }
+
+                if self.show_dijkstra {
+                    println!("Computing Dijkstra heatmap");
+                    let pather = MapPather { map: &self.map };
+                    self.path_range
+                        .dijkstra_map(&pather, &[self.player], gruid_paths::UNREACHABLE);
+                }
+
                 None
             }
 
@@ -671,7 +691,7 @@ impl gruid_core::app::Model for Game {
                 for x in 0..WIDTH {
                     let p = Point::new(x, y);
                     let d = self.path_range.dijkstra_at(p);
-                    if d >= gruid_paths::UNREACHABLE || d < 0 {
+                    if d == gruid_paths::UNREACHABLE || d < 0 {
                         continue;
                     }
                     let idx = (y * WIDTH + x) as usize;
@@ -702,10 +722,7 @@ impl gruid_core::app::Model for Game {
                     continue;
                 }
                 let existing = grid.at(p);
-                let style = existing
-                    .style
-                    .with_fg(COL_PATH)
-                    .with_attrs(AttrMask::BOLD);
+                let style = existing.style.with_fg(COL_PATH).with_attrs(AttrMask::BOLD);
                 grid.set(p, Cell::default().with_char('*').with_style(style));
             }
         }
@@ -743,7 +760,9 @@ impl gruid_core::app::Model for Game {
 
         // ---- Status bar (row MAP_HEIGHT) ----
         let status_y = MAP_HEIGHT;
-        let status_style = Style::default().with_fg(COL_STATUS_FG).with_bg(COL_STATUS_BG);
+        let status_style = Style::default()
+            .with_fg(COL_STATUS_FG)
+            .with_bg(COL_STATUS_BG);
         for x in 0..WIDTH {
             grid.set(
                 Point::new(x, status_y),
@@ -776,9 +795,7 @@ impl gruid_core::app::Model for Game {
             fov_tag,
         );
 
-        let status = format!(
-            "{hp_text}  {pos_text}  {turn_text}  {mode_text}{overlays}"
-        );
+        let status = format!("{hp_text}  {pos_text}  {turn_text}  {mode_text}{overlays}");
         let hp_style = if self.hp <= 5 {
             status_style.with_fg(COL_MONSTER)
         } else {
@@ -789,7 +806,11 @@ impl gruid_core::app::Model for Game {
             if x >= WIDTH {
                 break;
             }
-            let s = if i < hp_text.len() { hp_style } else { status_style };
+            let s = if i < hp_text.len() {
+                hp_style
+            } else {
+                status_style
+            };
             grid.set(
                 Point::new(x, status_y),
                 Cell::default().with_char(ch).with_style(s),
@@ -836,15 +857,17 @@ impl gruid_core::app::Model for Game {
                     info.push_str("Floor");
                 }
             }
-            if let Some(m) = self.monsters.iter().find(|m| m.pos == self.cursor && m.hp > 0) {
+            if let Some(m) = self
+                .monsters
+                .iter()
+                .find(|m| m.pos == self.cursor && m.hp > 0)
+            {
                 info.push_str(&format!(" | Monster '{}' HP:{}", m.ch, m.hp));
             }
             if self.player == self.cursor {
                 info.push_str(" | You");
             }
-            let info_style = Style::default()
-                .with_fg(COL_PLAYER)
-                .with_bg(COL_BG);
+            let info_style = Style::default().with_fg(COL_PLAYER).with_bg(COL_BG);
             for (i, ch) in info.chars().enumerate() {
                 if i as i32 >= WIDTH {
                     break;

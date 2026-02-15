@@ -123,18 +123,13 @@ impl<R: Rng> MapGen<R> {
         let target = (total as f64 * fill_pct) as usize;
         let already_dug = self.grid.count(cell);
         let mut digs = already_dug;
-        let wlk_max = if walks > 0 {
-            (target - already_dug) / walks
-        } else {
-            target - already_dug
-        };
+
+        let remaining = target - already_dug;
+        let wlk_max = remaining.checked_div(walks).unwrap_or(remaining);
 
         while digs < target {
             // Start each walk from a random position (matching Go).
-            let mut pos = Point::new(
-                self.rng.random_range(0..w),
-                self.rng.random_range(0..h),
-            );
+            let mut pos = Point::new(self.rng.random_range(0..w), self.rng.random_range(0..h));
             if self.grid.at(pos) == Some(cell) {
                 continue;
             }
@@ -148,11 +143,12 @@ impl<R: Rng> MapGen<R> {
                 let q = walker.neighbor(pos, &mut self.rng);
                 // If current pos is out of range but next is in range and
                 // not yet dug, snap back to last known good position.
-                if !self.grid.contains(pos) && self.grid.contains(q) {
-                    if self.grid.at(q) != Some(cell) {
-                        pos = last_in_range;
-                        continue;
-                    }
+                if !self.grid.contains(pos)
+                    && self.grid.contains(q)
+                    && self.grid.at(q) != Some(cell)
+                {
+                    pos = last_in_range;
+                    continue;
                 }
                 pos = q;
                 if self.grid.contains(pos) {
@@ -218,20 +214,16 @@ impl<R: Rng> MapGen<R> {
 
                         let is_wall = match (use_w1, use_w2) {
                             (true, true) => {
-                                let w1 =
-                                    self.count_walls(p, 1, wall, rule.walls_out_of_range);
-                                let w2 =
-                                    self.count_walls(p, 2, wall, rule.walls_out_of_range);
+                                let w1 = self.count_walls(p, 1, wall, rule.walls_out_of_range);
+                                let w2 = self.count_walls(p, 2, wall, rule.walls_out_of_range);
                                 w1 >= rule.w_cutoff1 || w2 <= rule.w_cutoff2
                             }
                             (true, false) => {
-                                let w1 =
-                                    self.count_walls(p, 1, wall, rule.walls_out_of_range);
+                                let w1 = self.count_walls(p, 1, wall, rule.walls_out_of_range);
                                 w1 >= rule.w_cutoff1
                             }
                             (false, true) => {
-                                let w2 =
-                                    self.count_walls(p, 2, wall, rule.walls_out_of_range);
+                                let w2 = self.count_walls(p, 2, wall, rule.walls_out_of_range);
                                 w2 <= rule.w_cutoff2
                             }
                             (false, false) => false,
@@ -256,13 +248,7 @@ impl<R: Rng> MapGen<R> {
 
     /// Count wall cells within Chebyshev distance `radius` of `center`.
     /// Matches Go: includes the center cell itself in the count.
-    fn count_walls(
-        &self,
-        center: Point,
-        radius: i32,
-        wall: Cell,
-        walls_out_of_range: bool,
-    ) -> i32 {
+    fn count_walls(&self, center: Point, radius: i32, wall: Cell, walls_out_of_range: bool) -> i32 {
         let mut count = 0;
         let rg = gruid_core::Range::new(
             center.x - radius,

@@ -134,8 +134,7 @@ impl PathRange {
             let parent_p = self.point(parent_idx);
 
             // Natural neighbors + forced neighbors.
-            let (nats, forced) =
-                self.jps_get_neighbors(cp, parent_p, to, cur_g, &passable, diags);
+            let (nats, forced) = self.jps_get_neighbors(cp, parent_p, to, cur_g, &passable, diags);
 
             // Add forced neighbors.
             for (fp, fc) in forced {
@@ -167,6 +166,7 @@ impl PathRange {
         self.rng.contains(p) && !passable(p)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn jps_add(
         &mut self,
         p: Point,
@@ -272,16 +272,24 @@ impl PathRange {
         match fs {
             ForcedSucc::None => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     p = p + dir;
                 }
                 (p, 0)
             }
             ForcedSucc::Left => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     let np = p + dir;
                     if !passable(left(p, dir)) && self.jps_pass(left(p, dir) + dir, passable) {
                         return (p, i);
@@ -292,8 +300,12 @@ impl PathRange {
             }
             ForcedSucc::Right => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     let np = p + dir;
                     if !passable(right(p, dir)) && self.jps_pass(right(p, dir) + dir, passable) {
                         return (p, i);
@@ -304,8 +316,12 @@ impl PathRange {
             }
             ForcedSucc::Both => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     let np = p + dir;
                     if !passable(left(p, dir)) && self.jps_pass(left(p, dir) + dir, passable) {
                         return (p, i);
@@ -333,19 +349,30 @@ impl PathRange {
         match fs {
             ForcedSucc::None => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     p = p + dir;
                 }
                 (p, 0)
             }
             ForcedSucc::Left => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     let np = p + dir;
                     let ql = left(p, dir);
-                    if !passable(ql) && self.jps_pass(ql + dir, passable) && self.jps_pass(np, passable) {
+                    if !passable(ql)
+                        && self.jps_pass(ql + dir, passable)
+                        && self.jps_pass(np, passable)
+                    {
                         return (p, i);
                     }
                     p = np;
@@ -354,11 +381,18 @@ impl PathRange {
             }
             ForcedSucc::Right => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     let np = p + dir;
                     let qr = right(p, dir);
-                    if !passable(qr) && self.jps_pass(qr + dir, passable) && self.jps_pass(np, passable) {
+                    if !passable(qr)
+                        && self.jps_pass(qr + dir, passable)
+                        && self.jps_pass(np, passable)
+                    {
                         return (p, i);
                     }
                     p = np;
@@ -367,15 +401,25 @@ impl PathRange {
             }
             ForcedSucc::Both => {
                 for i in 1..=max {
-                    if !passable(p) { return (p, 0); }
-                    if p == to { return (p, i); }
+                    if !passable(p) {
+                        return (p, 0);
+                    }
+                    if p == to {
+                        return (p, i);
+                    }
                     let np = p + dir;
                     let ql = left(p, dir);
-                    if !passable(ql) && self.jps_pass(ql + dir, passable) && self.jps_pass(np, passable) {
+                    if !passable(ql)
+                        && self.jps_pass(ql + dir, passable)
+                        && self.jps_pass(np, passable)
+                    {
                         return (p, i);
                     }
                     let qr = right(p, dir);
-                    if !passable(qr) && self.jps_pass(qr + dir, passable) && self.jps_pass(np, passable) {
+                    if !passable(qr)
+                        && self.jps_pass(qr + dir, passable)
+                        && self.jps_pass(np, passable)
+                    {
                         return (p, i);
                     }
                     p = np;
@@ -387,6 +431,7 @@ impl PathRange {
 
     // -- Diagonal jumps --
 
+    #[allow(clippy::too_many_arguments)]
     fn jps_diag(
         &mut self,
         mut p: Point,
@@ -430,6 +475,7 @@ impl PathRange {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn jps_diag_nd(
         &mut self,
         mut p: Point,
@@ -467,11 +513,13 @@ impl PathRange {
             {
                 return (p, i);
             }
-            let (q, j) = self.jps_straight_nd(p.shift(dir.x, 0), Point::new(dir.x, 0), to, passable);
+            let (q, j) =
+                self.jps_straight_nd(p.shift(dir.x, 0), Point::new(dir.x, 0), to, passable);
             if j > 0 {
                 self.jps_add(q, origin, to, cost + i + j, false, cur_gen, open, passable);
             }
-            let (q, j) = self.jps_straight_nd(p.shift(0, dir.y), Point::new(0, dir.y), to, passable);
+            let (q, j) =
+                self.jps_straight_nd(p.shift(0, dir.y), Point::new(0, dir.y), to, passable);
             if j > 0 {
                 self.jps_add(q, origin, to, cost + i + j, false, cur_gen, open, passable);
             }
@@ -482,6 +530,7 @@ impl PathRange {
 
     // -- Jump dispatchers --
 
+    #[allow(clippy::too_many_arguments)]
     fn jps_jump(
         &mut self,
         p: Point,
@@ -500,6 +549,7 @@ impl PathRange {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn jps_jump_nd(
         &mut self,
         p: Point,
@@ -539,16 +589,12 @@ impl PathRange {
             // Straight: natural = forward.
             nats.push(p + dir);
             let ql = left(p, dir);
-            if !self.jps_pass(ql, passable) {
-                if diags || self.jps_pass(p + dir, passable) {
-                    forced.push((ql + dir, dc));
-                }
+            if !self.jps_pass(ql, passable) && (diags || self.jps_pass(p + dir, passable)) {
+                forced.push((ql + dir, dc));
             }
             let qr = right(p, dir);
-            if !self.jps_pass(qr, passable) {
-                if diags || self.jps_pass(p + dir, passable) {
-                    forced.push((qr + dir, dc));
-                }
+            if !self.jps_pass(qr, passable) && (diags || self.jps_pass(p + dir, passable)) {
+                forced.push((qr + dir, dc));
             }
         } else {
             // Diagonal.
@@ -560,16 +606,16 @@ impl PathRange {
                 nats.push(p + dir);
             }
             let qx = p.shift(-dir.x, 0);
-            if !self.jps_pass(qx, passable) {
-                if diags || self.jps_pass(p + Point::new(0, dir.y), passable) {
-                    forced.push((qx.shift(0, dir.y), dc));
-                }
+            if !self.jps_pass(qx, passable)
+                && (diags || self.jps_pass(p + Point::new(0, dir.y), passable))
+            {
+                forced.push((qx.shift(0, dir.y), dc));
             }
             let qy = p.shift(0, -dir.y);
-            if !self.jps_pass(qy, passable) {
-                if diags || self.jps_pass(p + Point::new(dir.x, 0), passable) {
-                    forced.push((qy.shift(dir.x, 0), dc));
-                }
+            if !self.jps_pass(qy, passable)
+                && (diags || self.jps_pass(p + Point::new(dir.x, 0), passable))
+            {
+                forced.push((qy.shift(dir.x, 0), dc));
             }
         }
 
