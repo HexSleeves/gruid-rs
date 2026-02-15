@@ -170,18 +170,23 @@ pub struct AppRunner {
     curr_grid: Grid,
     ctx: Context,
     needs_draw: bool,
+    tx: Sender<Msg>,
+    rx: Receiver<Msg>,
 }
 
 impl AppRunner {
     /// Create a new runner.  The driver should call [`init`](Self::init)
     /// before processing events.
     pub fn new(model: Box<dyn Model>, width: i32, height: i32) -> Self {
+        let (tx, rx) = mpsc::channel();
         Self {
             model,
             prev_grid: Grid::new(width, height),
             curr_grid: Grid::new(width, height),
             ctx: Context::new(),
             needs_draw: false,
+            tx,
+            rx,
         }
     }
 
@@ -239,18 +244,34 @@ impl AppRunner {
         self.needs_draw = true;
     }
 
+    /// Drain any messages from background effects (Cmd/Sub).
+    /// The driver should call this periodically (e.g. each frame).
+    pub fn process_pending_msgs(&mut self) {
+        while let Ok(msg) = self.rx.try_recv() {
+            if let Some(effect) = self.model.update(msg) {
+                self.handle_effect(effect);
+            }
+            self.needs_draw = true;
+        }
+    }
+
     fn handle_effect(&mut self, effect: Effect) {
         match effect {
             Effect::End => {
                 self.ctx.cancel();
             }
             Effect::Cmd(f) => {
-                if let Some(msg) = f() {
-                    self.handle_msg(msg);
-                }
+                let tx = self.tx.clone();
+                std::thread::spawn(move || {
+                    if let Some(msg) = f() {
+                        let _ = tx.send(msg);
+                    }
+                });
             }
-            Effect::Sub(_f) => {
-                // TODO: spawn background task
+            Effect::Sub(f) => {
+                let ctx = self.ctx.clone();
+                let tx = self.tx.clone();
+                std::thread::spawn(move || f(ctx, tx));
             }
             Effect::Batch(effects) => {
                 for e in effects {
@@ -346,7 +367,7 @@ impl<M: Model, D: Driver> App<M, D> {
         &mut self,
         rx: &Receiver<Msg>,
         ctx: &Context,
-        _tx: &Sender<Msg>,
+        tx: &Sender<Msg>,
         prev_grid: &mut Grid,
         curr_grid: &mut Grid,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -354,7 +375,7 @@ impl<M: Model, D: Driver> App<M, D> {
 
         while let Ok(msg) = rx.try_recv() {
             if let Some(effect) = self.model.update(msg) {
-                if self.handle_effect(effect, ctx) {
+                if self.handle_effect(effect, ctx, tx) {
                     return Ok(());
                 }
             }
@@ -373,20 +394,30 @@ impl<M: Model, D: Driver> App<M, D> {
         Ok(())
     }
 
-    fn handle_effect(&self, effect: Effect, ctx: &Context) -> bool {
+    fn handle_effect(&self, effect: Effect, ctx: &Context, tx: &Sender<Msg>) -> bool {
         match effect {
             Effect::End => {
                 ctx.cancel();
                 true
             }
             Effect::Cmd(f) => {
-                let _msg = f();
+                let tx = tx.clone();
+                std::thread::spawn(move || {
+                    if let Some(msg) = f() {
+                        let _ = tx.send(msg);
+                    }
+                });
                 false
             }
-            Effect::Sub(_f) => false,
+            Effect::Sub(f) => {
+                let ctx = ctx.clone();
+                let tx = tx.clone();
+                std::thread::spawn(move || f(ctx, tx));
+                false
+            }
             Effect::Batch(effects) => {
                 for e in effects {
-                    if self.handle_effect(e, ctx) {
+                    if self.handle_effect(e, ctx, tx) {
                         return true;
                     }
                 }

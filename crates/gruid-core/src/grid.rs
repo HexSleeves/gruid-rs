@@ -255,6 +255,8 @@ pub struct Frame {
     pub cells: Vec<FrameCell>,
     pub width: i32,
     pub height: i32,
+    /// Milliseconds since recording start (used for replay timing).
+    pub time_ms: u64,
 }
 
 /// Compute the difference between two same-sized grids.
@@ -281,6 +283,7 @@ pub fn compute_frame(prev: &Grid, curr: &Grid) -> Frame {
         cells,
         width: bounds.width(),
         height: bounds.height(),
+        time_ms: 0,
     }
 }
 

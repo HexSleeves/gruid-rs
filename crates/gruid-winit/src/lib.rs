@@ -122,6 +122,9 @@ impl WinitApp {
             return;
         }
 
+        // Drain messages from background effects (Cmd/Sub).
+        self.runner.process_pending_msgs();
+
         let frame = self.runner.draw_frame();
 
         let state = match self.state.as_mut() {
