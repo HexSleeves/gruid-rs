@@ -19,6 +19,20 @@ pub struct LightNode {
     pub cost: i32,
 }
 
+/// The shape of the FOV boundary.
+///
+/// By default, FOV algorithms produce a square (Chebyshev) boundary because
+/// diagonal movement costs the same as cardinal. `Circle` clips results to
+/// a Euclidean-distance circle instead.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum FovShape {
+    /// Square boundary (Chebyshev distance). This is the default.
+    #[default]
+    Square,
+    /// Circular boundary (Euclidean distance).
+    Circle,
+}
+
 /// Trait for providing the cost of light passing through a cell.
 ///
 /// Matches Go gruid's `Lighter` interface with `Cost(src, from, to)` and
@@ -34,6 +48,47 @@ pub trait Lighter {
     /// The maximum cost at which light can no longer propagate from `src`.
     /// Typically the maximum sight/light distance.
     fn max_cost(&self, src: Point) -> i32;
+}
+
+/// A wrapper around any [`Lighter`] that clips ray propagation to a
+/// Euclidean-distance circle.
+///
+/// Use this with [`FOV::vision_map`] or [`FOV::light_map`] to get circular
+/// FOV instead of the default square (Chebyshev) shape.
+///
+/// # Example
+///
+/// ```ignore
+/// let lighter = CircularLighter::new(my_lighter);
+/// fov.vision_map(&lighter, source);
+/// ```
+pub struct CircularLighter<L> {
+    inner: L,
+}
+
+impl<L: Lighter> CircularLighter<L> {
+    /// Wrap a lighter to produce circular FOV.
+    pub fn new(inner: L) -> Self {
+        Self { inner }
+    }
+}
+
+impl<L: Lighter> Lighter for CircularLighter<L> {
+    fn cost(&self, src: Point, from: Point, to: Point) -> i32 {
+        let max = self.inner.max_cost(src);
+        let dx = (to.x - src.x) as i64;
+        let dy = (to.y - src.y) as i64;
+        let dist_sq = dx * dx + dy * dy;
+        let max_sq = (max as i64) * (max as i64);
+        if dist_sq > max_sq {
+            return i32::MAX;
+        }
+        self.inner.cost(src, from, to)
+    }
+
+    fn max_cost(&self, src: Point) -> i32 {
+        self.inner.max_cost(src)
+    }
 }
 
 fn sign(n: i32) -> i32 {
@@ -443,6 +498,82 @@ impl FOV {
         &self.visibles
     }
 
+    /// Post-filter the current visibility results to a Euclidean circle.
+    ///
+    /// Call this after [`ssc_vision_map`](Self::ssc_vision_map) or
+    /// [`ssc_light_map`](Self::ssc_light_map) to clip the square boundary
+    /// to a circle centered on `center` with the given `radius`.
+    pub fn retain_circular(&mut self, center: Point, radius: i32) {
+        let r_sq = (radius as i64) * (radius as i64);
+        self.visibles.retain(|&p| {
+            let dx = (p.x - center.x) as i64;
+            let dy = (p.y - center.y) as i64;
+            dx * dx + dy * dy <= r_sq
+        });
+        // Update the shadow_casting bitmap to match.
+        if !self.shadow_casting.is_empty() {
+            // Clear all, then re-mark the retained points.
+            for v in &mut self.shadow_casting {
+                *v = false;
+            }
+            for &p in &self.visibles {
+                if p.in_range(&self.range) {
+                    let idx = self.idx(p);
+                    self.shadow_casting[idx] = true;
+                }
+            }
+        }
+    }
+
+    /// Convenience: SSC vision map clipped to a Euclidean circle.
+    ///
+    /// Equivalent to calling [`ssc_vision_map`](Self::ssc_vision_map) followed
+    /// by [`retain_circular`](Self::retain_circular).
+    pub fn ssc_vision_map_circular(
+        &mut self,
+        src: Point,
+        radius: i32,
+        passable: impl Fn(Point) -> bool,
+        diags: bool,
+    ) -> &[Point] {
+        self.ssc_vision_map(src, radius, passable, diags);
+        self.retain_circular(src, radius);
+        &self.visibles
+    }
+
+    /// Convenience: SSC light map clipped to a Euclidean circle.
+    pub fn ssc_light_map_circular(
+        &mut self,
+        srcs: &[Point],
+        radius: i32,
+        passable: impl Fn(Point) -> bool,
+        diags: bool,
+    ) -> &[Point] {
+        self.ssc_light_map(srcs, radius, passable, diags);
+        // For multi-source, clip each point against its nearest source.
+        // Simplification: clip against the radius from any source.
+        let r_sq = (radius as i64) * (radius as i64);
+        self.visibles.retain(|&p| {
+            srcs.iter().any(|&s| {
+                let dx = (p.x - s.x) as i64;
+                let dy = (p.y - s.y) as i64;
+                dx * dx + dy * dy <= r_sq
+            })
+        });
+        if !self.shadow_casting.is_empty() {
+            for v in &mut self.shadow_casting {
+                *v = false;
+            }
+            for &p in &self.visibles {
+                if p.in_range(&self.range) {
+                    let idx = self.idx(p);
+                    self.shadow_casting[idx] = true;
+                }
+            }
+        }
+        &self.visibles
+    }
+
     fn ssc_internal(
         &mut self,
         src: Point,
@@ -820,5 +951,128 @@ mod tests {
         let b_sees_a = fov.visible(a);
 
         assert_eq!(a_sees_b, b_sees_a, "SSC should be symmetric");
+    }
+
+    // ── Circular FOV tests ─────────────────────────────────────
+
+    #[test]
+    fn test_circular_lighter_clips_corners() {
+        // With radius 5, the corner at (5,5) from source has Euclidean
+        // distance sqrt(50) ≈ 7.07 — should NOT be visible.
+        let range = Range::new(0, 0, 20, 20);
+        let mut fov = FOV::new(range);
+        let src = Point::new(10, 10);
+        let radius = 5;
+
+        // Square FOV first — corner should be visible.
+        let lighter_sq = SimpleWalls {
+            walls: vec![],
+            max_cost: radius,
+        };
+        fov.vision_map(&lighter_sq, src);
+        let corner = Point::new(15, 15);
+        assert!(
+            fov.at(corner).is_some(),
+            "Square FOV should reach the corner"
+        );
+
+        // Circular FOV — corner should NOT be visible.
+        let lighter_circ = CircularLighter::new(SimpleWalls {
+            walls: vec![],
+            max_cost: radius,
+        });
+        fov.vision_map(&lighter_circ, src);
+        assert!(
+            fov.at(corner).is_none(),
+            "Circular FOV should NOT reach the corner at distance ~7.07"
+        );
+
+        // But a point along an axis at distance 5 should still be visible.
+        let axis_pt = Point::new(15, 10);
+        assert!(
+            fov.at(axis_pt).is_some(),
+            "Circular FOV should reach axis point at distance 5"
+        );
+    }
+
+    #[test]
+    fn test_circular_lighter_near_diagonal() {
+        // Point at (3,4) from source has distance 5 — should be visible
+        // with radius 5. Point at (4,4) has distance ~5.66 — should not.
+        let range = Range::new(0, 0, 20, 20);
+        let mut fov = FOV::new(range);
+        let src = Point::new(10, 10);
+        let lighter = CircularLighter::new(SimpleWalls {
+            walls: vec![],
+            max_cost: 5,
+        });
+        fov.vision_map(&lighter, src);
+
+        assert!(
+            fov.at(Point::new(13, 14)).is_some(),
+            "(3,4) from src: distance=5, should be visible"
+        );
+        assert!(
+            fov.at(Point::new(14, 14)).is_none(),
+            "(4,4) from src: distance≈5.66, should NOT be visible"
+        );
+    }
+
+    #[test]
+    fn test_ssc_vision_map_circular() {
+        let range = Range::new(0, 0, 20, 20);
+        let mut fov = FOV::new(range);
+        let src = Point::new(10, 10);
+
+        // Square SSC first.
+        fov.ssc_vision_map(src, 5, |_| true, true);
+        let square_count = fov.iter_visible().count();
+
+        // Circular SSC.
+        fov.ssc_vision_map_circular(src, 5, |_| true, true);
+        let circle_count = fov.iter_visible().count();
+
+        // Circle should have fewer visible cells than square.
+        assert!(
+            circle_count < square_count,
+            "Circle ({circle_count}) should have fewer visible cells than square ({square_count})"
+        );
+
+        // Corner should be clipped.
+        assert!(
+            !fov.visible(Point::new(15, 15)),
+            "Corner should not be visible in circular SSC"
+        );
+
+        // Axis point should remain.
+        assert!(
+            fov.visible(Point::new(15, 10)),
+            "Axis point should remain visible in circular SSC"
+        );
+    }
+
+    #[test]
+    fn test_retain_circular_updates_bitmap() {
+        let range = Range::new(0, 0, 20, 20);
+        let mut fov = FOV::new(range);
+        let src = Point::new(10, 10);
+
+        fov.ssc_vision_map(src, 5, |_| true, true);
+        assert!(fov.visible(Point::new(15, 15)), "pre-filter: corner visible");
+
+        fov.retain_circular(src, 5);
+        assert!(
+            !fov.visible(Point::new(15, 15)),
+            "post-filter: corner not visible"
+        );
+        assert!(
+            fov.visible(src),
+            "post-filter: source still visible"
+        );
+    }
+
+    #[test]
+    fn test_fov_shape_default() {
+        assert_eq!(FovShape::default(), FovShape::Square);
     }
 }
