@@ -3,8 +3,9 @@
 Comprehensive task list for completing the Rust port of [gruid](https://codeberg.org/anaseto/gruid).
 The Go original lives at `/home/exedev/gruid/` for reference.
 
-Current state: ~7,400 LOC across 7 crates, 48 tests passing.
-Estimated remaining: ~1,500 LOC.
+Current state: ~9,200 LOC across 7 crates, 85 tests passing.
+All P0 (critical bugs) and P1 (major features) are complete.
+Remaining: P2 (minor methods/polish) and enhancements.
 
 ---
 
@@ -185,16 +186,11 @@ These are improvements for the "modern take" that go beyond a 1:1 port.
 
 ---
 
-## Dependency Graph
+## Recommended Next Steps
 
-```
-M9 (Sub effects) ── standalone fix
-M10 (recording) ──→ M5 (replay widget)
+All P0 and P1 tasks are complete. Suggested priority for remaining work:
 
-M1 (vaults) ── standalone
-M2 (KeepCC) ── depends on gruid-paths CC (already works)
-
-M6-M8 (UI widgets) ── standalone, can be done in parallel
-```
-
-**Recommended order:** M9 → M10 → M1 → M2 → M5 → M6–M8 → P1–P10
+1. **P2 items** — Range methods, Grid Resize, Display impls, serde derives
+2. **E4** — Port Go test suite, property-based tests for pathfinding
+3. **E5** — Crate-level rustdoc, additional examples
+4. **E2/E3** — WASM or GPU drivers (new crate work)
