@@ -5,17 +5,8 @@
 //! - [`softbuffer`] for CPU-based pixel rendering
 //! - [`fontdue`] for lightweight font rasterization
 //!
-//! # Usage
-//!
-//! ```rust,no_run
-//! use gruid_winit::{WinitDriver, WinitConfig};
-//! use gruid_core::app::AppRunner;
-//!
-//! let config = WinitConfig::default();
-//! let driver = WinitDriver::new(config);
-//! // let runner = AppRunner::new(Box::new(my_model), 80, 24);
-//! // driver.run(runner).unwrap();
-//! ```
+//! Handles high-DPI (Retina) displays automatically by scaling the font
+//! size by the monitor's scale factor.
 
 mod input;
 mod renderer;
@@ -25,7 +16,7 @@ use std::sync::Arc;
 
 use winit::{
     application::ApplicationHandler,
-    dpi::{LogicalSize, PhysicalSize},
+    dpi::PhysicalSize,
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
     window::{Window, WindowId},
@@ -48,7 +39,9 @@ pub struct WinitConfig {
     pub title: String,
     /// Embedded font bytes (TTF/OTF). If `None`, uses a built-in default.
     pub font_data: Option<Vec<u8>>,
-    /// Font size in pixels.
+    /// Font size in *logical* points. This is multiplied by the monitor's
+    /// scale factor to get the actual pixel size (e.g. 18pt × 2.0 = 36px
+    /// on a Retina display).
     pub font_size: f32,
     /// Number of grid columns.
     pub grid_width: i32,
@@ -61,7 +54,7 @@ impl Default for WinitConfig {
         Self {
             title: "gruid".into(),
             font_data: None,
-            font_size: 16.0,
+            font_size: 18.0,
             grid_width: 80,
             grid_height: 24,
         }
@@ -105,12 +98,14 @@ struct WinitApp {
     state: Option<WinitState>,
 }
 
-struct WinitState {
+pub(crate) struct WinitState {
     window: Arc<Window>,
     surface: softbuffer::Surface<Arc<Window>, Arc<Window>>,
-    renderer: GridRenderer,
-    pixel_width: u32,
-    pixel_height: u32,
+    pub(crate) renderer: GridRenderer,
+    /// Current surface size in *physical* pixels.
+    phys_width: u32,
+    phys_height: u32,
+    scale_factor: f64,
 }
 
 impl WinitApp {
@@ -134,22 +129,17 @@ impl WinitApp {
             None => return,
         };
 
-        // Apply frame diff to internal pixel buffer
         if let Some(frame) = frame {
             state.renderer.apply_frame(&frame);
         }
 
-        // Blit to softbuffer
-        let width = state.pixel_width;
-        let height = state.pixel_height;
+        let width = state.phys_width;
+        let height = state.phys_height;
         if width == 0 || height == 0 {
             return;
         }
 
-        let mut buf = match state
-            .surface
-            .buffer_mut()
-        {
+        let mut buf = match state.surface.buffer_mut() {
             Ok(b) => b,
             Err(_) => return,
         };
@@ -165,23 +155,35 @@ impl WinitApp {
 impl ApplicationHandler for WinitApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.state.is_some() {
-            return; // already initialized
+            return;
         }
 
-        // Build renderer to learn cell size
+        // Probe the monitor's scale factor *before* creating the window so we
+        // can size the font correctly.  If no monitor is available (e.g. CI),
+        // fall back to 1.0.
+        let scale_factor = event_loop
+            .available_monitors()
+            .next()
+            .map(|m| m.scale_factor())
+            .unwrap_or(1.0);
+
+        // Scale the logical font size by the DPI factor.
+        let physical_font_size = self.config.font_size * scale_factor as f32;
+
         let renderer = GridRenderer::new(
             self.config.font_data.as_deref(),
-            self.config.font_size,
+            physical_font_size,
             self.config.grid_width as usize,
             self.config.grid_height as usize,
         );
 
-        let pixel_w = renderer.pixel_width() as u32;
-        let pixel_h = renderer.pixel_height() as u32;
+        // The renderer now works entirely in physical pixels.
+        let phys_w = renderer.pixel_width() as u32;
+        let phys_h = renderer.pixel_height() as u32;
 
         let window_attrs = Window::default_attributes()
             .with_title(&self.config.title)
-            .with_inner_size(LogicalSize::new(pixel_w, pixel_h))
+            .with_inner_size(PhysicalSize::new(phys_w, phys_h))
             .with_resizable(true);
 
         let window = Arc::new(
@@ -197,8 +199,8 @@ impl ApplicationHandler for WinitApp {
 
         surface
             .resize(
-                NonZeroU32::new(pixel_w).unwrap_or(NonZeroU32::new(1).unwrap()),
-                NonZeroU32::new(pixel_h).unwrap_or(NonZeroU32::new(1).unwrap()),
+                NonZeroU32::new(phys_w).unwrap_or(NonZeroU32::new(1).unwrap()),
+                NonZeroU32::new(phys_h).unwrap_or(NonZeroU32::new(1).unwrap()),
             )
             .ok();
 
@@ -206,11 +208,11 @@ impl ApplicationHandler for WinitApp {
             window,
             surface,
             renderer,
-            pixel_width: pixel_w,
-            pixel_height: pixel_h,
+            phys_width: phys_w,
+            phys_height: phys_h,
+            scale_factor,
         });
 
-        // Send Init to the model
         self.runner.init();
         self.render();
     }
@@ -227,10 +229,31 @@ impl ApplicationHandler for WinitApp {
                 event_loop.exit();
             }
 
+            WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                if let Some(state) = self.state.as_mut() {
+                    state.scale_factor = scale_factor;
+                    // Rebuild renderer with the new physical font size.
+                    let physical_font_size = self.config.font_size * scale_factor as f32;
+                    state.renderer = GridRenderer::new(
+                        self.config.font_data.as_deref(),
+                        physical_font_size,
+                        self.runner.width() as usize,
+                        self.runner.height() as usize,
+                    );
+                    // Force full redraw.
+                    self.runner.handle_msg(Msg::Screen {
+                        width: self.runner.width(),
+                        height: self.runner.height(),
+                        time: std::time::Instant::now(),
+                    });
+                }
+                self.render();
+            }
+
             WindowEvent::Resized(PhysicalSize { width, height }) => {
                 if let Some(state) = self.state.as_mut() {
-                    state.pixel_width = width;
-                    state.pixel_height = height;
+                    state.phys_width = width;
+                    state.phys_height = height;
                     state
                         .surface
                         .resize(
@@ -239,13 +262,15 @@ impl ApplicationHandler for WinitApp {
                         )
                         .ok();
 
-                    // Recompute grid dimensions based on new pixel size
+                    // Recompute grid dimensions in physical pixels.
                     let (cw, ch) = state.renderer.cell_size();
                     if cw > 0 && ch > 0 {
                         let new_cols = (width as i32) / (cw as i32);
                         let new_rows = (height as i32) / (ch as i32);
                         if new_cols > 0 && new_rows > 0 {
-                            state.renderer.resize_grid(new_cols as usize, new_rows as usize);
+                            state
+                                .renderer
+                                .resize_grid(new_cols as usize, new_rows as usize);
                             self.runner.resize(new_cols, new_rows);
                             self.runner.handle_msg(Msg::Screen {
                                 width: new_cols,
@@ -276,8 +301,14 @@ impl ApplicationHandler for WinitApp {
                 }
             }
 
-            WindowEvent::MouseInput { state: btn_state, button, .. } => {
-                if let Some(msg) = input::translate_mouse_button(btn_state, button, self.state.as_ref()) {
+            WindowEvent::MouseInput {
+                state: btn_state,
+                button,
+                ..
+            } => {
+                if let Some(msg) =
+                    input::translate_mouse_button(btn_state, button, self.state.as_ref())
+                {
                     self.runner.handle_msg(msg);
                     if self.runner.should_quit() {
                         event_loop.exit();
