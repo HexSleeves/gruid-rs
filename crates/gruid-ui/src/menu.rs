@@ -1,5 +1,5 @@
-use gruid_core::{Cell, Grid, Point, Style};
 use gruid_core::messages::{Key, Msg};
+use gruid_core::{Cell, Grid, Point, Style};
 
 use crate::{BoxDecor, StyledText};
 
@@ -131,32 +131,29 @@ impl Menu {
             return MenuAction::Pass;
         }
 
-        match msg {
-            Msg::KeyDown { ref key, .. } => {
-                if self.keys.up.contains(key) {
-                    self.move_active(-1);
-                    self.action = MenuAction::Move;
-                } else if self.keys.down.contains(key) {
-                    self.move_active(1);
-                    self.action = MenuAction::Move;
-                } else if self.keys.invoke.contains(key) {
-                    if !self.current_disabled() {
+        if let Msg::KeyDown { ref key, .. } = msg {
+            if self.keys.up.contains(key) {
+                self.move_active(-1);
+                self.action = MenuAction::Move;
+            } else if self.keys.down.contains(key) {
+                self.move_active(1);
+                self.action = MenuAction::Move;
+            } else if self.keys.invoke.contains(key) {
+                if !self.current_disabled() {
+                    self.action = MenuAction::Invoke;
+                }
+            } else if self.keys.quit.contains(key) {
+                self.action = MenuAction::Quit;
+            } else {
+                // Check per-entry shortcut keys.
+                for (i, entry) in self.entries.iter().enumerate() {
+                    if !entry.disabled && entry.keys.contains(key) {
+                        self.active = i;
                         self.action = MenuAction::Invoke;
-                    }
-                } else if self.keys.quit.contains(key) {
-                    self.action = MenuAction::Quit;
-                } else {
-                    // Check per-entry shortcut keys.
-                    for (i, entry) in self.entries.iter().enumerate() {
-                        if !entry.disabled && entry.keys.contains(key) {
-                            self.active = i;
-                            self.action = MenuAction::Invoke;
-                            break;
-                        }
+                        break;
                     }
                 }
             }
-            _ => {}
         }
 
         self.action
@@ -242,8 +239,6 @@ impl Menu {
     }
 
     fn current_disabled(&self) -> bool {
-        self.entries
-            .get(self.active)
-            .map_or(true, |e| e.disabled)
+        self.entries.get(self.active).is_none_or(|e| e.disabled)
     }
 }

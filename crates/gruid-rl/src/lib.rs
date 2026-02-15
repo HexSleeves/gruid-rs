@@ -1,11 +1,11 @@
 //! Roguelike utilities for gruid: FOV, map generation, event queue.
 
-pub mod grid;
-pub mod fov;
-pub mod mapgen;
 pub mod events;
+pub mod fov;
+pub mod grid;
+pub mod mapgen;
 
-pub use grid::{Grid as RlGrid, Cell as RlCell};
-pub use fov::FOV;
-pub use mapgen::MapGen;
 pub use events::EventQueue;
+pub use fov::FOV;
+pub use grid::{Cell as RlCell, Grid as RlGrid};
+pub use mapgen::MapGen;

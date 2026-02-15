@@ -1,5 +1,5 @@
-use gruid_core::{Cell, Grid, Point, Style};
 use gruid_core::messages::{Key, Msg};
+use gruid_core::{Cell, Grid, Point, Style};
 
 use crate::BoxDecor;
 
@@ -89,68 +89,65 @@ impl TextInput {
     pub fn update(&mut self, msg: Msg) -> TextInputAction {
         self.action = TextInputAction::Pass;
 
-        match msg {
-            Msg::KeyDown { ref key, .. } => {
-                if self.keys.confirm.contains(key) {
-                    self.action = TextInputAction::Confirm;
-                } else if self.keys.cancel.contains(key) {
-                    self.action = TextInputAction::Cancel;
-                } else {
-                    match key {
-                        Key::Char(ch) => {
-                            self.content.insert(self.cursor, *ch);
-                            self.cursor += ch.len_utf8();
+        if let Msg::KeyDown { ref key, .. } = msg {
+            if self.keys.confirm.contains(key) {
+                self.action = TextInputAction::Confirm;
+            } else if self.keys.cancel.contains(key) {
+                self.action = TextInputAction::Cancel;
+            } else {
+                match key {
+                    Key::Char(ch) => {
+                        self.content.insert(self.cursor, *ch);
+                        self.cursor += ch.len_utf8();
+                        self.action = TextInputAction::Change;
+                    }
+                    Key::Backspace => {
+                        if self.cursor > 0 {
+                            let prev = self.content[..self.cursor]
+                                .char_indices()
+                                .next_back()
+                                .map(|(i, _)| i)
+                                .unwrap_or(0);
+                            self.content.remove(prev);
+                            self.cursor = prev;
                             self.action = TextInputAction::Change;
                         }
-                        Key::Backspace => {
-                            if self.cursor > 0 {
-                                let prev = self.content[..self.cursor]
-                                    .char_indices()
-                                    .next_back()
-                                    .map(|(i, _)| i)
-                                    .unwrap_or(0);
-                                self.content.remove(prev);
-                                self.cursor = prev;
-                                self.action = TextInputAction::Change;
-                            }
-                        }
-                        Key::Delete => {
-                            if self.cursor < self.content.len() {
-                                self.content.remove(self.cursor);
-                                self.action = TextInputAction::Change;
-                            }
-                        }
-                        Key::ArrowLeft => {
-                            if self.cursor > 0 {
-                                let prev = self.content[..self.cursor]
-                                    .char_indices()
-                                    .next_back()
-                                    .map(|(i, _)| i)
-                                    .unwrap_or(0);
-                                self.cursor = prev;
-                            }
-                        }
-                        Key::ArrowRight => {
-                            if self.cursor < self.content.len() {
-                                let next = self.content[self.cursor..]
-                                    .char_indices()
-                                    .nth(1)
-                                    .map(|(i, _)| self.cursor + i)
-                                    .unwrap_or(self.content.len());
-                                self.cursor = next;
-                            }
-                        }
-                        Key::Home => {
-                            self.cursor = 0;
-                        }
-                        Key::End => {
-                            self.cursor = self.content.len();
-                        }
-                        _ => {}
                     }
+                    Key::Delete => {
+                        if self.cursor < self.content.len() {
+                            self.content.remove(self.cursor);
+                            self.action = TextInputAction::Change;
+                        }
+                    }
+                    Key::ArrowLeft => {
+                        if self.cursor > 0 {
+                            let prev = self.content[..self.cursor]
+                                .char_indices()
+                                .next_back()
+                                .map(|(i, _)| i)
+                                .unwrap_or(0);
+                            self.cursor = prev;
+                        }
+                    }
+                    Key::ArrowRight => {
+                        if self.cursor < self.content.len() {
+                            let next = self.content[self.cursor..]
+                                .char_indices()
+                                .nth(1)
+                                .map(|(i, _)| self.cursor + i)
+                                .unwrap_or(self.content.len());
+                            self.cursor = next;
+                        }
+                    }
+                    Key::Home => {
+                        self.cursor = 0;
+                    }
+                    Key::End => {
+                        self.cursor = self.content.len();
+                    }
+                    _ => {}
                 }
             }
-            _ => {}
         }
 
         self.action

@@ -165,8 +165,7 @@ impl Grid {
             for dx in 0..sw {
                 let sp = Point::new(src.bounds.min.x + dx, src.bounds.min.y + dy);
                 let dp = Point::new(self.bounds.min.x + dx, self.bounds.min.y + dy);
-                if let (Some(si), Some(di)) =
-                    (src_buf.index(sp.x, sp.y), dst_buf.index(dp.x, dp.y))
+                if let (Some(si), Some(di)) = (src_buf.index(sp.x, sp.y), dst_buf.index(dp.x, dp.y))
                 {
                     dst_buf.cells[di] = src_buf.cells[si];
                 }

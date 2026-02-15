@@ -16,11 +16,11 @@ use crossterm::{
 };
 
 use gruid_core::{
+    Point,
     app::{Context, Driver},
     grid::Frame,
-    messages::{Key, ModMask, Msg, MouseAction},
+    messages::{Key, ModMask, MouseAction, Msg},
     style::{AttrMask, Color},
-    Point,
 };
 
 use std::time::Instant;
@@ -137,17 +137,11 @@ impl Driver for CrosstermDriver {
             let msg = match ev {
                 Event::Key(KeyEvent {
                     code, modifiers, ..
-                }) => {
-                    if let Some(key) = to_key(code) {
-                        Some(Msg::KeyDown {
-                            key,
-                            modifiers: to_mod_mask(modifiers),
-                            time: Instant::now(),
-                        })
-                    } else {
-                        None
-                    }
-                }
+                }) => to_key(code).map(|key| Msg::KeyDown {
+                    key,
+                    modifiers: to_mod_mask(modifiers),
+                    time: Instant::now(),
+                }),
                 Event::Mouse(me) => {
                     let pos = Point::new(me.column as i32, me.row as i32);
                     let modifiers = to_mod_mask(me.modifiers);
@@ -261,11 +255,7 @@ impl Driver for CrosstermDriver {
         if self.mouse_enabled {
             let _ = execute!(stdout, event::DisableMouseCapture);
         }
-        let _ = execute!(
-            stdout,
-            cursor::Show,
-            terminal::LeaveAlternateScreen
-        );
+        let _ = execute!(stdout, cursor::Show, terminal::LeaveAlternateScreen);
         let _ = terminal::disable_raw_mode();
     }
 }

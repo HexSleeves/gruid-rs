@@ -223,10 +223,7 @@ impl Grid {
                 (p, buf.cells[idx])
             })
             .collect();
-        GridIter {
-            items,
-            pos: 0,
-        }
+        GridIter { items, pos: 0 }
     }
 }
 

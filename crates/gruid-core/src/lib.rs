@@ -4,17 +4,17 @@
 //! ecosystem: geometry primitives, styled cells, a shared-buffer grid, input
 //! events, and the Elm-architecture application loop.
 
-pub mod geom;
-pub mod style;
+pub mod app;
 pub mod cell;
+pub mod geom;
 pub mod grid;
 pub mod messages;
-pub mod app;
 pub mod recording;
+pub mod style;
 
-pub use geom::{Point, Range};
-pub use style::{Style, Color, AttrMask};
+pub use app::{App, AppConfig, AppRunner, Cmd, Driver, Effect, EventLoopDriver, Model};
 pub use cell::Cell;
+pub use geom::{Point, Range};
 pub use grid::Grid;
 pub use messages::*;
-pub use app::{App, AppConfig, Model, Driver, EventLoopDriver, AppRunner, Effect, Cmd};
+pub use style::{AttrMask, Color, Style};

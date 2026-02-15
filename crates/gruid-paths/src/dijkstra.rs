@@ -2,9 +2,9 @@ use std::collections::BinaryHeap;
 
 use gruid_core::Point;
 
+use crate::PathRange;
 use crate::pathrange::{NodeRef, PathNode, UNREACHABLE};
 use crate::traits::WeightedPather;
-use crate::PathRange;
 
 impl PathRange {
     /// Compute a multi-source Dijkstra distance map.
@@ -61,8 +61,7 @@ impl PathRange {
             nbuf.clear();
             pather.neighbors(cp, &mut nbuf);
 
-            for i in 0..nbuf.len() {
-                let np = nbuf[i];
+            for &np in nbuf.iter() {
                 let Some(ni) = self.idx(np) else {
                     continue;
                 };

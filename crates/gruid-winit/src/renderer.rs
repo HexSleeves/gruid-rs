@@ -7,10 +7,7 @@
 use std::collections::HashMap;
 
 use fontdue::{Font, FontSettings};
-use gruid_core::{
-    grid::Frame,
-    style::Color,
-};
+use gruid_core::{grid::Frame, style::Color};
 
 /// Default built-in font (DejaVu Sans Mono subset would be ideal, but for
 /// size we embed nothing and fall back to fontdue's glyph-not-found box).
@@ -19,7 +16,7 @@ const FALLBACK_FONT: &[u8] = include_bytes!("builtin_font.ttf");
 
 /// Cached rasterized glyph.
 struct GlyphCache {
-    bitmap: Vec<u8>,   // alpha values, width*height
+    bitmap: Vec<u8>, // alpha values, width*height
     width: usize,
     height: usize,
     x_offset: i32,
@@ -40,25 +37,19 @@ pub(crate) struct GridRenderer {
 }
 
 impl GridRenderer {
-    pub fn new(
-        font_data: Option<&[u8]>,
-        font_size: f32,
-        cols: usize,
-        rows: usize,
-    ) -> Self {
+    pub fn new(font_data: Option<&[u8]>, font_size: f32, cols: usize, rows: usize) -> Self {
         let data = font_data.unwrap_or(FALLBACK_FONT);
-        let font = Font::from_bytes(data, FontSettings::default())
-            .expect("failed to parse font");
+        let font = Font::from_bytes(data, FontSettings::default()).expect("failed to parse font");
 
         // Compute cell size from font metrics
-        let metrics = font.horizontal_line_metrics(font_size).unwrap_or(
-            fontdue::LineMetrics {
+        let metrics = font
+            .horizontal_line_metrics(font_size)
+            .unwrap_or(fontdue::LineMetrics {
                 ascent: font_size * 0.8,
                 descent: -(font_size * 0.2),
                 line_gap: 0.0,
                 new_line_size: font_size,
-            },
-        );
+            });
 
         let cell_height = (metrics.ascent - metrics.descent).ceil() as usize;
         // Use 'M' to determine cell width for monospace
@@ -176,7 +167,9 @@ impl GridRenderer {
 
         // Compute baseline position
         let font_metrics = self.font.horizontal_line_metrics(self.font_size);
-        let ascent = font_metrics.map(|m| m.ascent.ceil() as i32).unwrap_or(ch_px as i32);
+        let ascent = font_metrics
+            .map(|m| m.ascent.ceil() as i32)
+            .unwrap_or(ch_px as i32);
 
         // glyph_y is the top-left pixel of the glyph bitmap relative to cell top
         let glyph_y = ascent - glyph.y_offset - glyph.height as i32;

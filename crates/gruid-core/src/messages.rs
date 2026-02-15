@@ -31,6 +31,29 @@ pub enum Key {
     Char(char),
 }
 
+impl std::fmt::Display for Key {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::ArrowUp => write!(f, "ArrowUp"),
+            Self::ArrowDown => write!(f, "ArrowDown"),
+            Self::ArrowLeft => write!(f, "ArrowLeft"),
+            Self::ArrowRight => write!(f, "ArrowRight"),
+            Self::Escape => write!(f, "Escape"),
+            Self::Enter => write!(f, "Enter"),
+            Self::Tab => write!(f, "Tab"),
+            Self::Space => write!(f, "Space"),
+            Self::Backspace => write!(f, "Backspace"),
+            Self::Delete => write!(f, "Delete"),
+            Self::Home => write!(f, "Home"),
+            Self::End => write!(f, "End"),
+            Self::PageUp => write!(f, "PageUp"),
+            Self::PageDown => write!(f, "PageDown"),
+            Self::Insert => write!(f, "Insert"),
+            Self::Char(c) => write!(f, "Char({})", c),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // ModMask
 // ---------------------------------------------------------------------------
@@ -39,6 +62,19 @@ pub enum Key {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ModMask(pub u8);
+
+impl std::fmt::Display for ModMask {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            0 => write!(f, "NONE"),
+            1 => write!(f, "SHIFT"),
+            2 => write!(f, "CTRL"),
+            3 => write!(f, "ALT"),
+            4 => write!(f, "META"),
+            _ => write!(f, "UNKNOWN"),
+        }
+    }
+}
 
 impl ModMask {
     pub const NONE: Self = Self(0);
@@ -97,6 +133,20 @@ pub enum MouseAction {
     Move,
 }
 
+impl std::fmt::Display for MouseAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Main => write!(f, "Main"),
+            Self::Auxiliary => write!(f, "Auxiliary"),
+            Self::Secondary => write!(f, "Secondary"),
+            Self::WheelUp => write!(f, "WheelUp"),
+            Self::WheelDown => write!(f, "WheelDown"),
+            Self::Release => write!(f, "Release"),
+            Self::Move => write!(f, "Move"),
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Msg
 // ---------------------------------------------------------------------------
@@ -127,6 +177,50 @@ pub enum Msg {
     Init,
     /// Request to quit.
     Quit,
+}
+
+impl std::fmt::Display for Msg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Init => write!(f, "Init"),
+            Self::Quit => write!(f, "Quit"),
+            Self::KeyDown {
+                key,
+                modifiers,
+                time,
+            } => write!(
+                f,
+                "KeyDown {{ key: {}, modifiers: {}, time: {} }}",
+                key,
+                modifiers,
+                time.elapsed().as_secs()
+            ),
+            Self::Mouse {
+                action,
+                pos,
+                modifiers,
+                time,
+            } => write!(
+                f,
+                "Mouse {{ action: {}, pos: {}, modifiers: {}, time: {} }}",
+                action,
+                pos,
+                modifiers,
+                time.elapsed().as_secs()
+            ),
+            Self::Screen {
+                width,
+                height,
+                time,
+            } => write!(
+                f,
+                "Screen {{ width: {}, height: {}, time: {} }}",
+                width,
+                height,
+                time.elapsed().as_secs()
+            ),
+        }
+    }
 }
 
 impl Msg {

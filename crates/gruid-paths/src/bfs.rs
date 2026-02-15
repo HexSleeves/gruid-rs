@@ -2,9 +2,9 @@ use std::collections::VecDeque;
 
 use gruid_core::Point;
 
+use crate::PathRange;
 use crate::pathrange::{PathNode, UNREACHABLE};
 use crate::traits::Pather;
-use crate::PathRange;
 
 impl PathRange {
     /// Compute a multi-source breadth-first search distance map.
@@ -32,10 +32,7 @@ impl PathRange {
                 }
                 self.bfs_map[si] = 0;
                 queue.push_back(si);
-                self.bfs_results.push(PathNode {
-                    pos: src,
-                    cost: 0,
-                });
+                self.bfs_results.push(PathNode { pos: src, cost: 0 });
             }
         }
 
@@ -48,8 +45,7 @@ impl PathRange {
             nbuf.clear();
             pather.neighbors(cp, &mut nbuf);
 
-            for i in 0..nbuf.len() {
-                let np = nbuf[i];
+            for &np in nbuf.iter() {
                 let Some(ni) = self.idx(np) else {
                     continue;
                 };
@@ -62,10 +58,7 @@ impl PathRange {
                 }
                 self.bfs_map[ni] = nd;
                 queue.push_back(ni);
-                self.bfs_results.push(PathNode {
-                    pos: np,
-                    cost: nd,
-                });
+                self.bfs_results.push(PathNode { pos: np, cost: nd });
             }
         }
 

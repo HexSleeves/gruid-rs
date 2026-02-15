@@ -9,11 +9,11 @@
 //!   thread event loop and pushes events into an [`AppRunner`] that the
 //!   driver calls into (winit, SDL2, browser).
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::Arc;
 
-use crate::grid::{compute_frame, Frame, Grid};
+use crate::grid::{Frame, Grid, compute_frame};
 use crate::messages::Msg;
 
 // ---------------------------------------------------------------------------
@@ -383,9 +383,7 @@ impl<M: Model, D: Driver> App<M, D> {
                 let _msg = f();
                 false
             }
-            Effect::Sub(_f) => {
-                false
-            }
+            Effect::Sub(_f) => false,
             Effect::Batch(effects) => {
                 for e in effects {
                     if self.handle_effect(e, ctx) {

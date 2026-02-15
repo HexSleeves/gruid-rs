@@ -3,8 +3,8 @@
 //! Run: cargo run --bin roguelike-winit
 
 use gruid_core::app::{AppRunner, EventLoopDriver};
+use gruid_examples::{Game, HEIGHT, WIDTH};
 use gruid_winit::{WinitConfig, WinitDriver};
-use gruid_examples::{Game, WIDTH, HEIGHT};
 
 fn main() {
     let game = Game::new();

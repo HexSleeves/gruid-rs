@@ -34,22 +34,59 @@ struct Octant {
 }
 
 const OCTANTS: [Octant; 8] = [
-    Octant { xx: 1, xy: 0, yx: 0, yy: 1 },
-    Octant { xx: 0, xy: 1, yx: 1, yy: 0 },
-    Octant { xx: 0, xy: -1, yx: 1, yy: 0 },
-    Octant { xx: -1, xy: 0, yx: 0, yy: 1 },
-    Octant { xx: -1, xy: 0, yx: 0, yy: -1 },
-    Octant { xx: 0, xy: -1, yx: -1, yy: 0 },
-    Octant { xx: 0, xy: 1, yx: -1, yy: 0 },
-    Octant { xx: 1, xy: 0, yx: 0, yy: -1 },
+    Octant {
+        xx: 1,
+        xy: 0,
+        yx: 0,
+        yy: 1,
+    },
+    Octant {
+        xx: 0,
+        xy: 1,
+        yx: 1,
+        yy: 0,
+    },
+    Octant {
+        xx: 0,
+        xy: -1,
+        yx: 1,
+        yy: 0,
+    },
+    Octant {
+        xx: -1,
+        xy: 0,
+        yx: 0,
+        yy: 1,
+    },
+    Octant {
+        xx: -1,
+        xy: 0,
+        yx: 0,
+        yy: -1,
+    },
+    Octant {
+        xx: 0,
+        xy: -1,
+        yx: -1,
+        yy: 0,
+    },
+    Octant {
+        xx: 0,
+        xy: 1,
+        yx: -1,
+        yy: 0,
+    },
+    Octant {
+        xx: 1,
+        xy: 0,
+        yx: 0,
+        yy: -1,
+    },
 ];
 
 impl Octant {
     fn transform(&self, row: i32, col: i32) -> (i32, i32) {
-        (
-            row * self.xx + col * self.xy,
-            row * self.yx + col * self.yy,
-        )
+        (row * self.xx + col * self.xy, row * self.yx + col * self.yy)
     }
 }
 
@@ -64,8 +101,6 @@ impl Fraction {
     fn new(num: i32, den: i32) -> Self {
         Self { num, den }
     }
-
-
 }
 
 /// A pending scan row for the iterative shadow casting.
@@ -112,11 +147,7 @@ fn div_floor(a: i32, b: i32) -> i32 {
     // Euclidean-style floor division
     let d = a / b;
     let r = a % b;
-    if (r != 0) && ((r ^ b) < 0) {
-        d - 1
-    } else {
-        d
-    }
+    if (r != 0) && ((r ^ b) < 0) { d - 1 } else { d }
 }
 
 /// Field of Vision computation.
@@ -298,12 +329,13 @@ impl FOV {
                             let was_new = self.costs[idx] < 0;
                             self.costs[idx] = total;
                             if was_new {
-                                self.lighted.push(LightNode { pos: p, cost: total });
+                                self.lighted.push(LightNode {
+                                    pos: p,
+                                    cost: total,
+                                });
                             } else {
                                 // Update cost in lighted list.
-                                if let Some(node) =
-                                    self.lighted.iter_mut().find(|n| n.pos == p)
-                                {
+                                if let Some(node) = self.lighted.iter_mut().find(|n| n.pos == p) {
                                     node.cost = total;
                                 }
                             }
@@ -415,12 +447,12 @@ impl FOV {
                 let is_symmetric = {
                     // col >= depth * start_slope
                     // (2*col+1) * start.den > 2 * depth * start.num
-                    let start_ok = (2 * col + 1) * row.start_slope.den
-                        > 2 * row.depth * row.start_slope.num;
+                    let start_ok =
+                        (2 * col + 1) * row.start_slope.den > 2 * row.depth * row.start_slope.num;
                     // col <= depth * end_slope
                     // (2*col-1) * end.den < 2 * depth * end.num
-                    let end_ok = (2 * col - 1) * row.end_slope.den
-                        < 2 * row.depth * row.end_slope.num;
+                    let end_ok =
+                        (2 * col - 1) * row.end_slope.den < 2 * row.depth * row.end_slope.num;
                     start_ok && end_ok
                 };
 
@@ -570,10 +602,10 @@ mod tests {
         let b = Point::new(6, 10);
 
         let mut fov = FOV::new(range);
-        fov.ssc_vision_map(a, 10, &passable);
+        fov.ssc_vision_map(a, 10, passable);
         let a_sees_b = fov.visible(b);
 
-        fov.ssc_vision_map(b, 10, &passable);
+        fov.ssc_vision_map(b, 10, passable);
         let b_sees_a = fov.visible(a);
 
         assert_eq!(a_sees_b, b_sees_a, "SSC should be symmetric");

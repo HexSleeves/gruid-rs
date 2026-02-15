@@ -4,7 +4,7 @@
 
 use gruid_core::app::{App, AppConfig};
 use gruid_crossterm::CrosstermDriver;
-use gruid_examples::{Game, WIDTH, HEIGHT};
+use gruid_examples::{Game, HEIGHT, WIDTH};
 
 fn main() {
     let game = Game::new();

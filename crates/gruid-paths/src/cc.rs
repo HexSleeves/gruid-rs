@@ -2,8 +2,8 @@
 
 use gruid_core::Point;
 
-use crate::traits::Pather;
 use crate::PathRange;
+use crate::traits::Pather;
 
 impl PathRange {
     /// Label every cell in the range with a connected-component ID.
@@ -36,8 +36,7 @@ impl PathRange {
                 nbuf.clear();
                 pather.neighbors(cp, &mut nbuf);
 
-                for i in 0..nbuf.len() {
-                    let np = nbuf[i];
+                for &np in nbuf.iter() {
                     if let Some(ni) = self.idx(np) {
                         if self.cc_labels[ni] < 0 {
                             self.cc_labels[ni] = label;
@@ -80,8 +79,7 @@ impl PathRange {
             nbuf.clear();
             pather.neighbors(cp, &mut nbuf);
 
-            for i in 0..nbuf.len() {
-                let np = nbuf[i];
+            for &np in nbuf.iter() {
                 if let Some(ni) = self.idx(np) {
                     if self.cc_labels[ni] < 0 {
                         self.cc_labels[ni] = 0;

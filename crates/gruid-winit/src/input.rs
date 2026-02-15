@@ -2,15 +2,13 @@
 
 use std::time::Instant;
 
-use winit::event::{
-    ElementState, KeyEvent, MouseButton, MouseScrollDelta,
-};
-use winit::keyboard::{Key as WKey, NamedKey};
 use winit::dpi::PhysicalPosition;
+use winit::event::{ElementState, KeyEvent, MouseButton, MouseScrollDelta};
+use winit::keyboard::{Key as WKey, NamedKey};
 
 use gruid_core::{
-    messages::{Key, ModMask, MouseAction, Msg},
     Point,
+    messages::{Key, ModMask, MouseAction, Msg},
 };
 
 use crate::WinitState;
@@ -74,10 +72,11 @@ pub(crate) fn translate_keyboard(event: &KeyEvent) -> Option<Msg> {
 // ---------------------------------------------------------------------------
 
 fn pixel_to_grid(px: f64, py: f64, state: Option<&WinitState>) -> Point {
-    let (cw, ch) = state
-        .map(|s| s.renderer.cell_size())
-        .unwrap_or((8, 16));
-    Point::new((px as i32) / (cw as i32).max(1), (py as i32) / (ch as i32).max(1))
+    let (cw, ch) = state.map(|s| s.renderer.cell_size()).unwrap_or((8, 16));
+    Point::new(
+        (px as i32) / (cw as i32).max(1),
+        (py as i32) / (ch as i32).max(1),
+    )
 }
 
 pub(crate) fn translate_mouse_button(

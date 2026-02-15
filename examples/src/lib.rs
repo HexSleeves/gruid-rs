@@ -1,11 +1,11 @@
 //! Shared roguelike game model used by both terminal and graphical examples.
 
 use gruid_core::{
+    Cell, Point, Range,
     app::Effect,
     grid::Grid,
     messages::{Key, Msg},
     style::{Color, Style},
-    Cell, Point, Range,
 };
 use gruid_rl::{
     fov::{FOV, Lighter},
@@ -111,11 +111,11 @@ impl Game {
 
     fn try_move(&mut self, dx: i32, dy: i32) {
         let np = self.player.shift(dx, dy);
-        if np.x >= 0 && np.x < WIDTH && np.y >= 0 && np.y < HEIGHT {
-            if self.map.at(np) == Some(FLOOR) {
-                self.player = np;
-                self.compute_fov();
-            }
+        if np.x >= 0 && np.x < WIDTH && np.y >= 0 && np.y < HEIGHT && self.map.at(np) == Some(FLOOR)
+        {
+            println!("move to: {}, {}", np.x, np.y);
+            self.player = np;
+            self.compute_fov();
         }
     }
 }
@@ -128,6 +128,8 @@ impl Default for Game {
 
 impl gruid_core::app::Model for Game {
     fn update(&mut self, msg: Msg) -> Option<Effect> {
+        println!("{}", msg);
+
         match msg {
             Msg::Init => None,
             Msg::KeyDown { ref key, .. } => {

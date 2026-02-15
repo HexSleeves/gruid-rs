@@ -38,18 +38,16 @@ impl<E> Ord for Entry<E> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         // We wrap in Reverse for the BinaryHeap, so this ordering
         // is for "natural" comparison: smaller rank first, then smaller seq.
-        self.rank
-            .cmp(&other.rank)
-            .then_with(|| {
-                // Entries with `first == true` should come before others
-                // at the same rank. Among `first` entries, use seq.
-                // Among non-first entries, use seq.
-                match (self.first, other.first) {
-                    (true, false) => std::cmp::Ordering::Less,
-                    (false, true) => std::cmp::Ordering::Greater,
-                    _ => self.seq.cmp(&other.seq),
-                }
-            })
+        self.rank.cmp(&other.rank).then_with(|| {
+            // Entries with `first == true` should come before others
+            // at the same rank. Among `first` entries, use seq.
+            // Among non-first entries, use seq.
+            match (self.first, other.first) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => self.seq.cmp(&other.seq),
+            }
+        })
     }
 }
 

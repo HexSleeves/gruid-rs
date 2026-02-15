@@ -92,10 +92,7 @@ impl<R: Rng> MapGen<R> {
         let mut carved = 0usize;
 
         // Start at center.
-        let start = Point::new(
-            bounds.min.x + w / 2,
-            bounds.min.y + h / 2,
-        );
+        let start = Point::new(bounds.min.x + w / 2, bounds.min.y + h / 2);
 
         for _ in 0..walks {
             let mut pos = start;

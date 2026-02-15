@@ -1,5 +1,5 @@
-use gruid_core::{Cell, Grid, Point, Style};
 use gruid_core::messages::{Key, Msg};
+use gruid_core::{Cell, Grid, Point, Style};
 
 use crate::{BoxDecor, StyledText};
 
@@ -92,25 +92,22 @@ impl Pager {
         self.action = PagerAction::Pass;
         let page_size = self.visible_height();
 
-        match msg {
-            Msg::KeyDown { ref key, .. } => {
-                if self.keys.up.contains(key) {
-                    self.scroll_by(-1);
-                    self.action = PagerAction::Scroll;
-                } else if self.keys.down.contains(key) {
-                    self.scroll_by(1);
-                    self.action = PagerAction::Scroll;
-                } else if self.keys.page_up.contains(key) {
-                    self.scroll_by(-page_size);
-                    self.action = PagerAction::Scroll;
-                } else if self.keys.page_down.contains(key) {
-                    self.scroll_by(page_size);
-                    self.action = PagerAction::Scroll;
-                } else if self.keys.quit.contains(key) {
-                    self.action = PagerAction::Quit;
-                }
+        if let Msg::KeyDown { ref key, .. } = msg {
+            if self.keys.up.contains(key) {
+                self.scroll_by(-1);
+                self.action = PagerAction::Scroll;
+            } else if self.keys.down.contains(key) {
+                self.scroll_by(1);
+                self.action = PagerAction::Scroll;
+            } else if self.keys.page_up.contains(key) {
+                self.scroll_by(-page_size);
+                self.action = PagerAction::Scroll;
+            } else if self.keys.page_down.contains(key) {
+                self.scroll_by(page_size);
+                self.action = PagerAction::Scroll;
+            } else if self.keys.quit.contains(key) {
+                self.action = PagerAction::Quit;
             }
-            _ => {}
         }
 
         self.action

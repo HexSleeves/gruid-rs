@@ -8,9 +8,9 @@ use std::collections::BinaryHeap;
 
 use gruid_core::Point;
 
+use crate::PathRange;
 use crate::distance;
 use crate::pathrange::NodeRef;
-use crate::PathRange;
 
 impl PathRange {
     /// Compute a shortest path from `from` to `to` using Jump Point Search.
@@ -80,9 +80,7 @@ impl PathRange {
             };
 
             for dir in dirs {
-                if let Some((jp, dist)) =
-                    self.jps_jump(cp, dir, to, &passable, diags)
-                {
+                if let Some((jp, dist)) = self.jps_jump(cp, dir, to, &passable, diags) {
                     let Some(ji) = self.idx(jp) else {
                         continue;
                     };
@@ -96,10 +94,7 @@ impl PathRange {
                     jn.f = tentative_g + Self::jps_heuristic(jp, to, diags);
                     jn.parent = ci;
                     jn.open = true;
-                    open.push(NodeRef {
-                        idx: ji,
-                        f: jn.f,
-                    });
+                    open.push(NodeRef { idx: ji, f: jn.f });
                 }
             }
         };
@@ -166,10 +161,7 @@ impl PathRange {
         diags: bool,
     ) -> Vec<Point> {
         let mut dirs = Vec::with_capacity(8);
-        let d = Point::new(
-            (p.x - parent.x).signum(),
-            (p.y - parent.y).signum(),
-        );
+        let d = Point::new((p.x - parent.x).signum(), (p.y - parent.y).signum());
 
         if diags {
             if d.x != 0 && d.y != 0 {
@@ -184,14 +176,10 @@ impl PathRange {
                     dirs.push(Point::new(d.x, d.y));
                 }
                 // Forced neighbours
-                if !passable(p + Point::new(-d.x, 0))
-                    && passable(p + Point::new(-d.x, d.y))
-                {
+                if !passable(p + Point::new(-d.x, 0)) && passable(p + Point::new(-d.x, d.y)) {
                     dirs.push(Point::new(-d.x, d.y));
                 }
-                if !passable(p + Point::new(0, -d.y))
-                    && passable(p + Point::new(d.x, -d.y))
-                {
+                if !passable(p + Point::new(0, -d.y)) && passable(p + Point::new(d.x, -d.y)) {
                     dirs.push(Point::new(d.x, -d.y));
                 }
             } else if d.x != 0 {
@@ -199,14 +187,10 @@ impl PathRange {
                 if passable(p + Point::new(d.x, 0)) {
                     dirs.push(Point::new(d.x, 0));
                 }
-                if !passable(p + Point::new(0, 1))
-                    && passable(p + Point::new(d.x, 1))
-                {
+                if !passable(p + Point::new(0, 1)) && passable(p + Point::new(d.x, 1)) {
                     dirs.push(Point::new(d.x, 1));
                 }
-                if !passable(p + Point::new(0, -1))
-                    && passable(p + Point::new(d.x, -1))
-                {
+                if !passable(p + Point::new(0, -1)) && passable(p + Point::new(d.x, -1)) {
                     dirs.push(Point::new(d.x, -1));
                 }
             } else {
@@ -214,14 +198,10 @@ impl PathRange {
                 if passable(p + Point::new(0, d.y)) {
                     dirs.push(Point::new(0, d.y));
                 }
-                if !passable(p + Point::new(1, 0))
-                    && passable(p + Point::new(1, d.y))
-                {
+                if !passable(p + Point::new(1, 0)) && passable(p + Point::new(1, d.y)) {
                     dirs.push(Point::new(1, d.y));
                 }
-                if !passable(p + Point::new(-1, 0))
-                    && passable(p + Point::new(-1, d.y))
-                {
+                if !passable(p + Point::new(-1, 0)) && passable(p + Point::new(-1, d.y)) {
                     dirs.push(Point::new(-1, d.y));
                 }
             }
@@ -231,15 +211,11 @@ impl PathRange {
                 if passable(p + Point::new(d.x, 0)) {
                     dirs.push(Point::new(d.x, 0));
                 }
-                if !passable(p + Point::new(0, 1))
-                    && passable(p + Point::new(d.x, 1))
-                {
+                if !passable(p + Point::new(0, 1)) && passable(p + Point::new(d.x, 1)) {
                     dirs.push(Point::new(0, 1));
                     dirs.push(Point::new(d.x, 1));
                 }
-                if !passable(p + Point::new(0, -1))
-                    && passable(p + Point::new(d.x, -1))
-                {
+                if !passable(p + Point::new(0, -1)) && passable(p + Point::new(d.x, -1)) {
                     dirs.push(Point::new(0, -1));
                     dirs.push(Point::new(d.x, -1));
                 }
@@ -247,15 +223,11 @@ impl PathRange {
                 if passable(p + Point::new(0, d.y)) {
                     dirs.push(Point::new(0, d.y));
                 }
-                if !passable(p + Point::new(1, 0))
-                    && passable(p + Point::new(1, d.y))
-                {
+                if !passable(p + Point::new(1, 0)) && passable(p + Point::new(1, d.y)) {
                     dirs.push(Point::new(1, 0));
                     dirs.push(Point::new(1, d.y));
                 }
-                if !passable(p + Point::new(-1, 0))
-                    && passable(p + Point::new(-1, d.y))
-                {
+                if !passable(p + Point::new(-1, 0)) && passable(p + Point::new(-1, d.y)) {
                     dirs.push(Point::new(-1, 0));
                     dirs.push(Point::new(-1, d.y));
                 }
@@ -288,8 +260,7 @@ impl PathRange {
             // Check for forced neighbours.
             if diags && dir.x != 0 && dir.y != 0 {
                 // Diagonal: forced if blocked beside
-                if (!passable(n + Point::new(-dir.x, 0))
-                    && passable(n + Point::new(-dir.x, dir.y)))
+                if (!passable(n + Point::new(-dir.x, 0)) && passable(n + Point::new(-dir.x, dir.y)))
                     || (!passable(n + Point::new(0, -dir.y))
                         && passable(n + Point::new(dir.x, -dir.y)))
                 {
@@ -308,15 +279,11 @@ impl PathRange {
             } else if dir.x != 0 {
                 // Horizontal
                 let has_forced = if diags {
-                    (!passable(n + Point::new(0, 1))
-                        && passable(n + Point::new(dir.x, 1)))
-                        || (!passable(n + Point::new(0, -1))
-                            && passable(n + Point::new(dir.x, -1)))
+                    (!passable(n + Point::new(0, 1)) && passable(n + Point::new(dir.x, 1)))
+                        || (!passable(n + Point::new(0, -1)) && passable(n + Point::new(dir.x, -1)))
                 } else {
-                    (!passable(n + Point::new(0, 1))
-                        && passable(n + Point::new(0, 1)))
-                        || (!passable(n + Point::new(0, -1))
-                            && passable(n + Point::new(0, -1)))
+                    (!passable(n + Point::new(0, 1)) && passable(n + Point::new(0, 1)))
+                        || (!passable(n + Point::new(0, -1)) && passable(n + Point::new(0, -1)))
                 };
                 if has_forced {
                     return Some((n, dist));
@@ -324,15 +291,11 @@ impl PathRange {
             } else {
                 // Vertical
                 let has_forced = if diags {
-                    (!passable(n + Point::new(1, 0))
-                        && passable(n + Point::new(1, dir.y)))
-                        || (!passable(n + Point::new(-1, 0))
-                            && passable(n + Point::new(-1, dir.y)))
+                    (!passable(n + Point::new(1, 0)) && passable(n + Point::new(1, dir.y)))
+                        || (!passable(n + Point::new(-1, 0)) && passable(n + Point::new(-1, dir.y)))
                 } else {
-                    (!passable(n + Point::new(1, 0))
-                        && passable(n + Point::new(1, 0)))
-                        || (!passable(n + Point::new(-1, 0))
-                            && passable(n + Point::new(-1, 0)))
+                    (!passable(n + Point::new(1, 0)) && passable(n + Point::new(1, 0)))
+                        || (!passable(n + Point::new(-1, 0)) && passable(n + Point::new(-1, 0)))
                 };
                 if has_forced {
                     return Some((n, dist));

@@ -2,9 +2,9 @@ use std::collections::BinaryHeap;
 
 use gruid_core::Point;
 
+use crate::PathRange;
 use crate::pathrange::{NodeRef, UNREACHABLE};
 use crate::traits::AstarPather;
-use crate::PathRange;
 
 impl PathRange {
     /// Compute the shortest path from `from` to `to` using A*.
@@ -69,8 +69,7 @@ impl PathRange {
             nbuf.clear();
             pather.neighbors(current_point, &mut nbuf);
 
-            for i in 0..nbuf.len() {
-                let np = nbuf[i];
+            for &np in nbuf.iter() {
                 let Some(ni) = self.idx(np) else {
                     continue;
                 };
@@ -92,10 +91,7 @@ impl PathRange {
                 n.parent = ci;
                 n.open = true;
 
-                open.push(NodeRef {
-                    idx: ni,
-                    f: n.f,
-                });
+                open.push(NodeRef { idx: ni, f: n.f });
             }
         };
 

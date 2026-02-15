@@ -20,17 +20,17 @@
 //! | [`WeightedPather`] : [`Pather`] | Dijkstra |
 //! | [`AstarPather`] : [`WeightedPather`] | A* |
 
-mod traits;
-mod neighbors;
-mod distance;
-mod pathrange;
 mod astar;
-mod dijkstra;
 mod bfs;
-mod jps;
 mod cc;
+mod dijkstra;
+mod distance;
+mod jps;
+mod neighbors;
+mod pathrange;
+mod traits;
 
-pub use traits::{Pather, WeightedPather, AstarPather};
+pub use distance::{chebyshev, manhattan};
 pub use neighbors::Neighbors;
-pub use distance::{manhattan, chebyshev};
-pub use pathrange::{PathRange, PathNode, UNREACHABLE};
+pub use pathrange::{PathNode, PathRange, UNREACHABLE};
+pub use traits::{AstarPather, Pather, WeightedPather};
