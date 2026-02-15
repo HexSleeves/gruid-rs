@@ -32,12 +32,16 @@ struct MapLighter<'a> {
 }
 
 impl<'a> Lighter for MapLighter<'a> {
-    fn cost(&self, _from: Point, to: Point) -> i32 {
-        if self.map.at(to) == Some(WALL) {
+    fn cost(&self, _src: Point, from: Point, _to: Point) -> i32 {
+        if self.map.at(from) == Some(WALL) {
             i32::MAX
         } else {
             1
         }
+    }
+
+    fn max_cost(&self, _src: Point) -> i32 {
+        8
     }
 }
 
@@ -100,7 +104,7 @@ impl Game {
 
     fn compute_fov(&mut self) {
         let lighter = MapLighter { map: &self.map };
-        self.fov.vision_map(&lighter, self.player, 8);
+        self.fov.vision_map(&lighter, self.player);
         for ln in self.fov.iter_lighted() {
             let idx = (ln.pos.y * WIDTH + ln.pos.x) as usize;
             if idx < self.seen.len() {
