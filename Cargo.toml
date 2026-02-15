@@ -5,6 +5,7 @@ members = [
     "crates/gruid-rl",
     "crates/gruid-ui",
     "crates/gruid-crossterm",
+    "crates/gruid-winit",
     "examples",
 ]
 exclude = [
@@ -25,6 +26,10 @@ gruid-rl = { path = "crates/gruid-rl" }
 gruid-ui = { path = "crates/gruid-ui" }
 gruid-tiles = { path = "crates/gruid-tiles" }
 gruid-crossterm = { path = "crates/gruid-crossterm" }
+gruid-winit = { path = "crates/gruid-winit" }
 serde = { version = "1", features = ["derive"] }
+winit = "0.30"
+softbuffer = "0.4"
+fontdue = "0.9"
 rand = "0.9"
 crossterm = "0.28"

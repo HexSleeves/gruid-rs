@@ -1,5 +1,13 @@
 //! The Elm-architecture application loop: [`Model`], [`Driver`], [`Effect`],
 //! [`App`].
+//!
+//! Two driver models are supported:
+//!
+//! - **Poll-based** ([`Driver`]): the app calls `poll_msgs` in a loop
+//!   (crossterm, stdin-based terminals).
+//! - **Event-loop-based** ([`EventLoopDriver`]): the driver owns the main
+//!   thread event loop and pushes events into an [`AppRunner`] that the
+//!   driver calls into (winit, SDL2, browser).
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -97,17 +105,22 @@ pub trait Model {
 }
 
 // ---------------------------------------------------------------------------
-// Driver trait
+// Driver trait (poll-based: crossterm, etc.)
 // ---------------------------------------------------------------------------
 
-/// Back-end driver (e.g. terminal, graphical tile engine).
+/// Poll-based back-end driver (e.g. terminal via crossterm).
+///
+/// The [`App`] calls [`poll_msgs`](Driver::poll_msgs) in a loop on the main
+/// thread.  For event-loop-based backends (winit, SDL2) see
+/// [`EventLoopDriver`] and [`AppRunner`] instead.
 pub trait Driver {
     /// Initialise the back-end.
     fn init(&mut self) -> Result<(), Box<dyn std::error::Error>>;
 
     /// Poll for input messages, sending them through `tx`.
-    /// The implementation should honour `ctx.is_done()` and return when it
-    /// becomes `true`.
+    ///
+    /// Should return promptly (non-blocking or short timeout) so the
+    /// app can draw.  Honour `ctx.is_done()` and return when it is `true`.
     fn poll_msgs(
         &mut self,
         ctx: &Context,
@@ -122,7 +135,137 @@ pub trait Driver {
 }
 
 // ---------------------------------------------------------------------------
-// AppConfig / App
+// EventLoopDriver trait (winit, SDL2, browser)
+// ---------------------------------------------------------------------------
+
+/// Event-loop-based back-end driver.
+///
+/// The driver owns the main thread event loop and drives the application
+/// through an [`AppRunner`].  This is the correct pattern for winit, SDL2,
+/// and browser backends where the platform event loop must run on the main
+/// thread.
+pub trait EventLoopDriver {
+    /// Run the event loop.  The driver should:
+    ///
+    /// 1. Create its window / surface.
+    /// 2. Call `runner.init()` once.
+    /// 3. For each input event, call `runner.handle_msg(msg)`.
+    /// 4. When `runner.should_quit()` is true, exit.
+    /// 5. After processing events, call `runner.draw_frame()` to get the
+    ///    frame diff and render it.
+    fn run(self, runner: AppRunner) -> Result<(), Box<dyn std::error::Error>>;
+}
+
+// ---------------------------------------------------------------------------
+// AppRunner — the model+grid state machine for event-loop drivers
+// ---------------------------------------------------------------------------
+
+/// Encapsulates the Model-View-Update state machine for use by
+/// [`EventLoopDriver`] implementations.
+///
+/// The driver pushes messages in, and pulls frames out.
+pub struct AppRunner {
+    model: Box<dyn Model>,
+    prev_grid: Grid,
+    curr_grid: Grid,
+    ctx: Context,
+    needs_draw: bool,
+}
+
+impl AppRunner {
+    /// Create a new runner.  The driver should call [`init`](Self::init)
+    /// before processing events.
+    pub fn new(model: Box<dyn Model>, width: i32, height: i32) -> Self {
+        Self {
+            model,
+            prev_grid: Grid::new(width, height),
+            curr_grid: Grid::new(width, height),
+            ctx: Context::new(),
+            needs_draw: false,
+        }
+    }
+
+    /// Send the `Msg::Init` message to the model.  Call once at startup.
+    pub fn init(&mut self) {
+        self.handle_msg(Msg::Init);
+    }
+
+    /// Push a message into the model.
+    pub fn handle_msg(&mut self, msg: Msg) {
+        if let Some(effect) = self.model.update(msg) {
+            self.handle_effect(effect);
+        }
+        self.needs_draw = true;
+    }
+
+    /// Whether the model has requested the app to stop.
+    pub fn should_quit(&self) -> bool {
+        self.ctx.is_done()
+    }
+
+    /// Compute a diff frame if anything changed since the last call.
+    ///
+    /// Returns `Some(frame)` if the model was updated, `None` otherwise.
+    pub fn draw_frame(&mut self) -> Option<Frame> {
+        if !self.needs_draw {
+            return None;
+        }
+        self.needs_draw = false;
+        self.model.draw(&mut self.curr_grid);
+        let frame = compute_frame(&self.prev_grid, &self.curr_grid);
+        self.prev_grid.copy_from(&self.curr_grid);
+        if frame.cells.is_empty() {
+            None
+        } else {
+            Some(frame)
+        }
+    }
+
+    /// The current grid width.
+    pub fn width(&self) -> i32 {
+        self.curr_grid.width()
+    }
+
+    /// The current grid height.
+    pub fn height(&self) -> i32 {
+        self.curr_grid.height()
+    }
+
+    /// Resize the grids (e.g. when the window is resized and the cell
+    /// count changes).
+    pub fn resize(&mut self, width: i32, height: i32) {
+        self.prev_grid = Grid::new(width, height);
+        self.curr_grid = Grid::new(width, height);
+        self.needs_draw = true;
+    }
+
+    fn handle_effect(&mut self, effect: Effect) {
+        match effect {
+            Effect::End => {
+                self.ctx.cancel();
+            }
+            Effect::Cmd(f) => {
+                if let Some(msg) = f() {
+                    self.handle_msg(msg);
+                }
+            }
+            Effect::Sub(_f) => {
+                // TODO: spawn background task
+            }
+            Effect::Batch(effects) => {
+                for e in effects {
+                    self.handle_effect(e);
+                    if self.ctx.is_done() {
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// AppConfig / App  (poll-based driver)
 // ---------------------------------------------------------------------------
 
 /// Configuration for creating an [`App`].
@@ -134,7 +277,7 @@ pub struct AppConfig<M: Model, D: Driver> {
     pub frame_writer: Option<Box<dyn std::io::Write>>,
 }
 
-/// The main application runner.
+/// The main application runner for poll-based [`Driver`]s.
 pub struct App<M: Model, D: Driver> {
     model: M,
     driver: D,
@@ -171,18 +314,6 @@ impl<M: Model, D: Driver> App<M, D> {
         // Seed with Init.
         tx.send(Msg::Init).ok();
 
-        // Start polling in a background thread.
-        let poll_ctx = ctx.clone();
-        let poll_tx = tx.clone();
-        // We need to hand off polling to the driver, but Driver is !Send in
-        // general (it lives on the main thread). Instead we do synchronous
-        // polling inline (the simple / portable approach).
-        //
-        // For a real async driver you would spawn here; for now the driver
-        // can push messages before we enter the loop, or we interleave
-        // poll + draw.
-        let _ = (poll_ctx, poll_tx); // suppress unused
-
         let mut prev_grid = Grid::new(self.width, self.height);
         let mut curr_grid = Grid::new(self.width, self.height);
 
@@ -191,8 +322,6 @@ impl<M: Model, D: Driver> App<M, D> {
 
         // Main loop: poll then process.
         while !ctx.is_done() {
-            // Synchronous poll: the driver pushes messages into tx and then
-            // returns (non-blocking or single-event).
             match self.driver.poll_msgs(&ctx, tx.clone()) {
                 Ok(()) => {}
                 Err(e) => {
@@ -213,7 +342,6 @@ impl<M: Model, D: Driver> App<M, D> {
         Ok(())
     }
 
-    /// Drain queued messages, update the model, draw, diff, and flush.
     fn process_pending(
         &mut self,
         rx: &Receiver<Msg>,
@@ -224,7 +352,6 @@ impl<M: Model, D: Driver> App<M, D> {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut needs_draw = false;
 
-        // Drain all currently available messages.
         while let Ok(msg) = rx.try_recv() {
             if let Some(effect) = self.model.update(msg) {
                 if self.handle_effect(effect, ctx) {
@@ -240,14 +367,12 @@ impl<M: Model, D: Driver> App<M, D> {
             if !frame.cells.is_empty() {
                 self.driver.flush(frame)?;
             }
-            // Swap: copy current into previous.
             prev_grid.copy_from(curr_grid);
         }
 
         Ok(())
     }
 
-    /// Returns `true` if the app should stop.
     fn handle_effect(&self, effect: Effect, ctx: &Context) -> bool {
         match effect {
             Effect::End => {
@@ -255,14 +380,10 @@ impl<M: Model, D: Driver> App<M, D> {
                 true
             }
             Effect::Cmd(f) => {
-                // Run synchronously for now.
                 let _msg = f();
-                // If it produced a message we could feed it back; for now
-                // we drop it. A full implementation would re-enqueue.
                 false
             }
             Effect::Sub(_f) => {
-                // Subscriptions need a background thread; TODO.
                 false
             }
             Effect::Batch(effects) => {

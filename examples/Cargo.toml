@@ -9,6 +9,7 @@ description = "Examples for gruid"
 [dependencies]
 gruid-core = { workspace = true }
 gruid-crossterm = { workspace = true }
+gruid-winit = { workspace = true }
 gruid-paths = { workspace = true }
 gruid-rl = { workspace = true }
 gruid-ui = { workspace = true }
@@ -17,3 +18,7 @@ rand = { workspace = true }
 [[bin]]
 name = "roguelike"
 path = "roguelike.rs"
+
+[[bin]]
+name = "roguelike-winit"
+path = "roguelike_winit.rs"

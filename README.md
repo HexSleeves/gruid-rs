@@ -14,20 +14,34 @@ Msg → Model::update() → Effect → Model::draw() → Grid → diff → Frame
 
 | Crate | Description |
 |-------|-------------|
-| **`gruid-core`** | Core types: `Grid`, `Cell`, `Point`, `Range`, `Style`, `Msg`, `App`, `Model`, `Driver` |
+| **`gruid-core`** | Core types: `Grid`, `Cell`, `Point`, `Range`, `Style`, `Msg`, `App`/`AppRunner`, `Model`, `Driver`/`EventLoopDriver` |
 | **`gruid-paths`** | Pathfinding: A\*, Dijkstra, BFS, Jump Point Search, Connected Components |
 | **`gruid-rl`** | Roguelike utilities: FOV (ray-based & symmetric shadow casting), map generation (cellular automata, random walk), priority event queue |
 | **`gruid-ui`** | UI widgets: Menu, Pager, TextInput, Label, StyledText with markup, Box drawing |
 | **`gruid-tiles`** | Font-to-tile rendering for graphical backends (uses `rusttype` + `image`) |
 | **`gruid-crossterm`** | Terminal backend using [crossterm](https://docs.rs/crossterm) |
+| **`gruid-winit`** | Native graphical backend using [winit](https://docs.rs/winit) + [softbuffer](https://docs.rs/softbuffer) + [fontdue](https://docs.rs/fontdue) |
+
+## Two Driver Models
+
+gruid-core supports two backend patterns:
+
+| Pattern | Trait | Backends | How it works |
+|---------|-------|----------|--------------|
+| **Poll-based** | `Driver` | crossterm | App calls `poll_msgs()` in a loop |
+| **Event-loop** | `EventLoopDriver` | winit | Driver owns the main thread, pushes events into `AppRunner` |
+
+Both share the same `Model` trait — your game logic works unchanged across all backends.
 
 ## Key Design Decisions (vs. Go original)
 
+- **Dual driver model**: `Driver` (poll-based) + `EventLoopDriver` (event-loop-based) — Go gruid solved this with `DriverPollMsg`; we use separate traits
 - **Rust trait hierarchy** instead of Go interfaces: `Pather` → `WeightedPather` → `AstarPather`
 - **Generic `EventQueue<E>`** instead of `interface{}` events
 - **`Rc<RefCell<...>>`** shared grid buffers for slice semantics (like Go's slice-of-underlying-array)
 - **Generation-based cache invalidation** in pathfinding (zero-cost resets between queries)
 - **Crossterm** replaces tcell as the terminal backend (pure Rust, no CGo)
+- **Winit + softbuffer + fontdue** replaces SDL2 — pure Rust, no system deps
 - **Builder pattern** with `with_*()` methods on immutable value types (`Cell`, `Style`, `Point`)
 - **`serde` feature** for serialization (opt-in, replaces Go's `gob`)
 
@@ -65,13 +79,19 @@ fn main() {
 }
 ```
 
-## Example: Roguelike Demo
+## Examples
 
-The `examples/roguelike.rs` demo generates a cave map using cellular automata, computes FOV with ray casting, and lets you explore with arrow keys / hjkl:
+Both examples share the same `Game` model — only the driver changes:
 
 ```bash
+# Terminal (crossterm)
 cargo run --bin roguelike
+
+# Native window (winit + softbuffer)
+cargo run --bin roguelike-winit
 ```
+
+The roguelike demo generates a cave map using cellular automata, computes FOV with ray casting, and lets you explore with arrow keys / hjkl.
 
 ## Building
 

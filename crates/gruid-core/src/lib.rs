@@ -17,4 +17,4 @@ pub use style::{Style, Color, AttrMask};
 pub use cell::Cell;
 pub use grid::Grid;
 pub use messages::*;
-pub use app::{App, AppConfig, Model, Driver, Effect, Cmd};
+pub use app::{App, AppConfig, Model, Driver, EventLoopDriver, AppRunner, Effect, Cmd};
