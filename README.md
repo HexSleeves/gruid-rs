@@ -91,7 +91,19 @@ cargo run --bin roguelike
 cargo run --bin roguelike-winit
 ```
 
-The roguelike demo generates a cave map using cellular automata, computes FOV with ray casting, and lets you explore with arrow keys / hjkl.
+The roguelike demo showcases most of the framework:
+
+- **Cave generation** — cellular automata map
+- **FOV** — ray-based vision with lit/dark/seen states
+- **Monsters** — simple AI using A\* pathfinding to chase the player
+- **Combat** — bump-to-attack with HP tracking
+- **A\* path overlay** — press `p` to visualize shortest path to cursor
+- **Dijkstra heatmap** — press `d` to see distance gradient from player
+- **Look mode** — press `x` to examine tiles, monsters, terrain
+- **Mouse support** — click to auto-move along A\* path
+- **Status bar** — HP, position, turn count, mode indicators
+- **Message log** — combat and system messages
+- **Help screen** — press `?` for keybinding reference (pager widget)
 
 ## Building
 
