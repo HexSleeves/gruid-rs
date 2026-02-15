@@ -33,10 +33,11 @@ impl RandomWalker for FourDirectionWalker {
 #[derive(Debug, Clone)]
 pub struct CellularAutomataRule {
     /// If a cell has >= this many wall neighbors in the 1-ring (8 neighbors),
-    /// it becomes a wall.
+    /// it becomes a wall. Set to `0` to disable this check.
     pub w_cutoff1: i32,
-    /// If a cell has >= this many wall neighbors in the 2-ring
-    /// (24 neighbors), it becomes a wall.
+    /// If a cell has <= this many wall neighbors in the 2-ring
+    /// (24 neighbors), it becomes a wall. Set to `>= 25` to disable
+    /// this check (the 2-ring has at most 24 cells).
     pub w_cutoff2: i32,
     /// Whether cells outside the grid boundary count as walls.
     pub walls_out_of_range: bool,
@@ -156,22 +157,36 @@ impl<R: Rng> MapGen<R> {
         let mut scratch = vec![Cell::default(); (w * h) as usize];
 
         for rule in rules {
-            for _ in 0..rule.reps {
-                // Compute next generation into scratch.
-                for p in bounds.iter() {
-                    let walls1 = self.count_walls_ring(
-                        p, 1, wall, rule.walls_out_of_range,
-                    );
-                    let walls2 = self.count_walls_ring(
-                        p, 2, wall, rule.walls_out_of_range,
-                    );
+            // Determine which sub-checks are active.
+            // w_cutoff1 <= 0 means "disable W(1) check" (never triggers).
+            // w_cutoff2 >= 25 means "disable W(2) check" (the 2-ring has at
+            //   most 24 cells, so `walls2 <= 25` would always be true —
+            //   matching the Go original's optimization).
+            let use_w1 = rule.w_cutoff1 > 0;
+            let use_w2 = rule.w_cutoff2 < 25;
 
+            for _ in 0..rule.reps {
+                for p in bounds.iter() {
                     let idx = ((p.y - bounds.min.y) * w + (p.x - bounds.min.x)) as usize;
-                    if walls1 >= rule.w_cutoff1 || walls2 <= rule.w_cutoff2 {
-                        scratch[idx] = wall;
-                    } else {
-                        scratch[idx] = ground;
-                    }
+
+                    let is_wall = match (use_w1, use_w2) {
+                        (true, true) => {
+                            let w1 = self.count_walls_ring(p, 1, wall, rule.walls_out_of_range);
+                            let w2 = self.count_walls_ring(p, 2, wall, rule.walls_out_of_range);
+                            w1 >= rule.w_cutoff1 || w2 <= rule.w_cutoff2
+                        }
+                        (true, false) => {
+                            let w1 = self.count_walls_ring(p, 1, wall, rule.walls_out_of_range);
+                            w1 >= rule.w_cutoff1
+                        }
+                        (false, true) => {
+                            let w2 = self.count_walls_ring(p, 2, wall, rule.walls_out_of_range);
+                            w2 <= rule.w_cutoff2
+                        }
+                        (false, false) => false, // both disabled → ground
+                    };
+
+                    scratch[idx] = if is_wall { wall } else { ground };
                 }
 
                 // Copy scratch back to grid.

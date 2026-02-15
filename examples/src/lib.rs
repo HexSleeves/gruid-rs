@@ -58,7 +58,7 @@ impl Game {
         let rules = vec![
             CellularAutomataRule {
                 w_cutoff1: 5,
-                w_cutoff2: 25,
+                w_cutoff2: 25, // >= 25 disables W(2) check
                 walls_out_of_range: true,
                 reps: 4,
             },
