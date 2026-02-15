@@ -110,7 +110,7 @@ impl PathRange {
                     }
                     continue;
                 }
-                let c = if dir.x != 0 && dir.y != 0 { 1 } else { 1 };
+                let c = 1;
                 self.jps_add(q, from, to, c, diags, cur_gen, &mut open, &passable);
             }
         }
