@@ -34,22 +34,19 @@ All P0 items are resolved.
 
 ---
 
-## 🟡 Major: Missing Features (P1)
+## ✅ Completed: Major Features (P1)
 
-Recommended order: M9 → M10 → M1 → M2 → M5 → M6–M8
+All P1 items are resolved.
 
-### M1. Vault system (rl/mapgen)
-- **File:** New `crates/gruid-rl/src/vault.rs`
-- **Missing:** Entire Vault type — parsing ASCII art maps into Grid overlays.
-- **Methods needed:** `new(content)`, `parse(text)`, `content()`, `size()`,
-  `set_runes(map)`, `runes()`, `iter()`, `draw(grid, pos)`, `reflect()`, `rotate()`
-- **Ref:** Go `rl/mapgen.go` Vault section (~100 lines)
+### ~~M1. Vault system (rl/mapgen)~~ ✅
+- New `crates/gruid-rl/src/vault.rs` with full Vault type
+- parse, iter, draw, reflect, rotate (90/180/270°)
+- 9 tests
 
-### M2. `KeepCC` — ensure cave connectivity
-- **File:** `crates/gruid-rl/src/mapgen.rs`
-- **Missing:** `MapGen::keep_connected(cell, wall)` — uses `gruid-paths` CC to find
-  the largest connected component and fill the rest with walls.
-- **Ref:** Go `rl/mapgen.go` `KeepCC` function
+### ~~M2. `KeepCC` — ensure cave connectivity~~ ✅
+- `MapGen::keep_connected()` fills unreachable cells with walls
+- Uses PathRange CC labels
+- 1 test
 
 ### M3. Multi-source FOV lighting — DONE (included in C3 fix)
 - `FOV::light_map()` and `FOV::ssc_light_map()` are implemented.
@@ -57,65 +54,37 @@ Recommended order: M9 → M10 → M1 → M2 → M5 → M6–M8
 ### M4. FOV ray traceback — DONE (included in C3 fix)
 - `FOV::from()` and `FOV::ray()` are implemented.
 
-### M5. Replay widget
-- **File:** New `crates/gruid-ui/src/replay.rs`
-- **Missing:** Entire `Replay` widget — frame playback with speed control, pause,
-  seeking, undo, help overlay.
-- **Types:** `Replay`, `ReplayConfig`, `ReplayKeys`, `ReplayAction`
-- **Methods:** `new(config)`, `update(msg)`, `draw(grid)`, `set_frame(idx)`,
-  `seek(offset)`
-- **Depends on:** Working frame recording/decoding (see M10)
-- **Ref:** Go `ui/replay.go` (~390 lines)
+### ~~M5. Replay widget~~ ✅
+- New `crates/gruid-ui/src/replay.rs`
+- Auto-play with speed control (1x-64x), pause, frame stepping, seeking
+- Undo stack for backward navigation
+- 3 tests
 
-### M6. Menu widget — complete implementation
-- **File:** `crates/gruid-ui/src/menu.rs`
-- **Missing:**
-  - Mouse event handling (hover to activate, click to invoke)
-  - Pagination (PageUp/PageDown across pages)
-  - Multi-column / table layout (`MenuStyle.layout`)
-  - Disabled-entry skipping during keyboard navigation
-  - `set_entries()`, `set_box()`, `active_bounds()`, `bounds()`
-  - Page number display in box footer
-- **Ref:** Go `ui/menu.go` (~720 lines — the largest UI widget)
+### ~~M6. Menu widget — complete implementation~~ ✅
+- Mouse support (hover/click), pagination, disabled-entry skip
+- set_entries(), set_box(), active_bounds(), bounds()
+- 7 tests
+- Note: Multi-column/table layout not yet implemented
 
-### M7. Pager widget — complete implementation
-- **File:** `crates/gruid-ui/src/pager.rs`
-- **Missing:**
-  - Horizontal scroll (Left/Right/Start keys)
-  - Half-page navigation (HalfPageDown/HalfPageUp)
-  - Top/Bottom jump (Home/End)
-  - Mouse wheel scrolling
-  - Standalone `MsgInit` mode (pager as main app model)
-  - `set_cursor()`, `set_box()`, `set_lines()`, `view()`, `action()` getters
-  - Line number display in box
-- **Ref:** Go `ui/pager.go` (~400 lines)
+### ~~M7. Pager widget — complete implementation~~ ✅
+- Horizontal scroll, half-page nav, top/bottom jump, mouse wheel
+- set_lines(), set_cursor(), set_box(), view(), action() getters
+- 6 tests
 
-### M8. TextInput widget — complete implementation
-- **File:** `crates/gruid-ui/src/text_input.rs`
-- **Missing:**
-  - Prompt text support (`Prompt StyledText`)
-  - Mouse click-to-position cursor
-  - `set_cursor()`, `set_box()`, `action()` getters
-  - Cursor rendering with style swap
-- **Ref:** Go `ui/textinput.go` (~260 lines)
+### ~~M8. TextInput widget — complete implementation~~ ✅
+- Prompt text, mouse click-to-position, cursor rendering
+- set_cursor(), set_box(), set_prompt(), action() getters
+- 6 tests
 
-### M9. Sub effects — background thread spawning
-- **File:** `crates/gruid-core/src/app.rs`
-- **Missing:** `Effect::Sub` is silently dropped. Need to spawn a thread and
-  feed messages back via the channel.
-- **Fix:** In `App::handle_effect` for `Effect::Sub(f)`, spawn
-  `std::thread::spawn(move || f(ctx, tx))`. In `AppRunner::handle_effect`,
-  same but store join handles.
-- **Ref:** Go `ui.go` subscription dispatch
+### ~~M9. Sub effects — background thread spawning~~ ✅
+- Effect::Cmd and Effect::Sub spawn background threads
+- AppRunner::process_pending_msgs() for event-loop drivers
+- Winit driver updated to call process_pending_msgs()
 
-### M10. Frame recording — real serialization
-- **File:** `crates/gruid-core/src/recording.rs`
-- **Missing:** Current implementation is a stub. Need real frame encode/decode.
-- **Fix:** Use `bincode` + `flate2` (Rust equivalents of Go's gob+gzip).
-  Gate behind `serde` feature. `FrameEncoder::encode(frame)`,
-  `FrameDecoder::decode() -> Option<Frame>`.
-- **Also:** Add `time: Instant` field to `Frame` struct for replay timing.
-- **Ref:** Go `recording.go`
+### ~~M10. Frame recording — real serialization~~ ✅
+- Compact binary encoder/decoder (length-prefixed frames)
+- Frame.time_ms field for replay timing
+- 4 tests (round-trip for empty, styled, multiple, Unicode)
 
 ---
 

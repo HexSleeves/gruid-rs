@@ -194,7 +194,7 @@ The Go original is cloned at `/home/exedev/gruid/`. Key files:
 
 ## Known Working State
 
-- **48 tests pass** (`cargo test -p gruid-core -p gruid-paths -p gruid-rl -p gruid-ui -p gruid-crossterm`)
+- **85 tests pass** (`cargo test -p gruid-core -p gruid-paths -p gruid-rl -p gruid-ui -p gruid-crossterm`)
 - **Workspace compiles clean** (`cargo check --workspace`, zero warnings)
 - **Grid relative coordinates** — both gruid-core and gruid-rl match Go semantics
 - **JPS 4-way and 8-way** — both work, faithfully ported from Go
@@ -207,13 +207,10 @@ The Go original is cloned at `/home/exedev/gruid/`. Key files:
 
 ## Known Incomplete / Missing
 
-- **Sub effects** — silently dropped (no thread spawning)
-- **Recording** — stub only
-- **Vault system** — not implemented
-- **KeepCC** — not implemented
-- **UI widgets** — partial (keys only, no mouse/pagination/prompt)
 - **Grid Resize** — not implemented
 - **StyledText @r markup** — partial
+- **Menu multi-column layout** — not yet implemented
+- **P2 minor methods** — see TODO.md
 
 ---
 
