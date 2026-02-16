@@ -241,7 +241,7 @@ impl FOV {
     }
 
     fn vision_update(&mut self, lt: &impl Lighter, to: Point) {
-        let n = self.from_internal(lt, to);
+        let n = self.resolve_light_node(lt, to);
         // Cost must be positive and finite (not overflowed/MAX).
         if n.cost > 0 && n.cost < i32::MAX {
             let to_idx = self.idx(to);
@@ -256,7 +256,7 @@ impl FOV {
     /// Compute octant parents and find the minimum-cost parent for a position.
     /// Returns a LightNode with cost = stored cost (cost+1 in the array).
     #[allow(clippy::wrong_self_convention)]
-    fn from_internal(&self, lt: &impl Lighter, to: Point) -> LightNode {
+    fn resolve_light_node(&self, lt: &impl Lighter, to: Point) -> LightNode {
         let q = self.src - to;
         let r = Point::new(sign(q.x), sign(q.y));
 
@@ -332,11 +332,11 @@ impl FOV {
     /// cost (matching Go's `FOV.From`), or `None` if unreachable.
     pub fn from(&self, lt: &impl Lighter, to: Point) -> Option<LightNode> {
         self.at(to)?;
-        let ln = self.from_internal(lt, to);
+        let ln = self.resolve_light_node(lt, to);
         if ln.cost == 0 {
             return None;
         }
-        // `from_internal` already returns stored cost = parent_stored_cost + lt.cost(src, parent, to).
+        // `resolve_light_node` already returns stored cost = parent_stored_cost + lt.cost(src, parent, to).
         // Subtract 1 to convert from stored (1-based) to actual (0-based) cost.
         Some(LightNode {
             pos: ln.pos,
@@ -350,7 +350,7 @@ impl FOV {
         self.ray_cache.clear();
         let mut cur = to;
         while cur != self.src {
-            let n = self.from_internal(lt, cur);
+            let n = self.resolve_light_node(lt, cur);
             self.ray_cache.push(LightNode {
                 pos: cur,
                 cost: n.cost - 1,
@@ -415,7 +415,7 @@ impl FOV {
     }
 
     fn light_update(&mut self, lt: &impl Lighter, to: Point) {
-        let n = self.from_internal(lt, to);
+        let n = self.resolve_light_node(lt, to);
         if n.cost <= 0 || n.cost == i32::MAX {
             return;
         }
