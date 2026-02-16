@@ -1,9 +1,9 @@
 [package]
-name = "shamogu"
-version.workspace = true
-edition.workspace = true
+name                   = "shamogu"
+version.workspace      = true
+edition.workspace      = true
 rust-version.workspace = true
-license.workspace = true
+license.workspace      = true
 
 [lib]
 name = "shamogu_lib"

@@ -202,7 +202,7 @@ impl<'de> serde::Deserialize<'de> for PathRange {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gruid_core::{Point, Range};
+    use gruid_core::Range;
 
     #[test]
     fn set_range_smaller_preserves_capacity() {
