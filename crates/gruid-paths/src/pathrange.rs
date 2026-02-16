@@ -2,6 +2,7 @@ use gruid_core::{Point, Range};
 
 /// A position with an associated cost, returned from Dijkstra / BFS map queries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PathNode {
     pub pos: Point,
     pub cost: i32,
@@ -163,5 +164,53 @@ impl PathRange {
         let x = (idx % self.width) as i32 + self.rng.min.x;
         let y = (idx / self.width) as i32 + self.rng.min.y;
         Point::new(x, y)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for PathRange {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.rng.serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for PathRange {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let range = gruid_core::Range::deserialize(deserializer)?;
+        Ok(PathRange::new(range))
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use gruid_core::{Point, Range};
+
+    #[test]
+    fn pathnode_round_trip() {
+        let node = PathNode {
+            pos: Point::new(3, 7),
+            cost: 42,
+        };
+        let json = serde_json::to_string(&node).unwrap();
+        let back: PathNode = serde_json::from_str(&json).unwrap();
+        assert_eq!(node, back);
+    }
+
+    #[test]
+    fn pathrange_round_trip() {
+        let rng = Range {
+            min: Point::new(1, 2),
+            max: Point::new(10, 20),
+        };
+        let pr = PathRange::new(rng);
+        let json = serde_json::to_string(&pr).unwrap();
+        let back: PathRange = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.range(), rng);
+        // Caches are freshly initialized (not serialized).
+        assert_eq!(back.astar_generation, 0);
+        assert_eq!(back.dijkstra_generation, 0);
+        assert_eq!(back.bfs_map.len(), rng.len());
     }
 }

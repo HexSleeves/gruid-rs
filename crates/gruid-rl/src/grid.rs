@@ -428,6 +428,119 @@ impl IntoIterator for &Grid {
     }
 }
 
+#[cfg(feature = "serde")]
+mod grid_serde {
+    use super::*;
+
+    /// Helper struct for serializing a Grid view.
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct GridData {
+        width: i32,
+        height: i32,
+        cells: Vec<Cell>,
+    }
+
+    impl serde::Serialize for Grid {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            let w = self.bounds.width();
+            let h = self.bounds.height();
+            let buf = self.buf.borrow();
+            let mut cells = Vec::with_capacity((w * h) as usize);
+            for abs_p in self.bounds.iter() {
+                if let Some(idx) = buf.index(abs_p.x, abs_p.y) {
+                    cells.push(buf.cells[idx]);
+                }
+            }
+            let data = GridData {
+                width: w,
+                height: h,
+                cells,
+            };
+            data.serialize(serializer)
+        }
+    }
+
+    impl<'de> serde::Deserialize<'de> for Grid {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            let data = GridData::deserialize(deserializer)?;
+            let expected = (data.width * data.height) as usize;
+            if data.cells.len() != expected {
+                return Err(serde::de::Error::custom(format!(
+                    "expected {} cells for {}x{} grid, got {}",
+                    expected,
+                    data.width,
+                    data.height,
+                    data.cells.len()
+                )));
+            }
+            let buf = Rc::new(RefCell::new(GridBuffer {
+                cells: data.cells,
+                width: data.width,
+                height: data.height,
+            }));
+            Ok(Grid {
+                buf,
+                bounds: Range::new(0, 0, data.width, data.height),
+            })
+        }
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use gruid_core::{Point, Range};
+
+    #[test]
+    fn grid_round_trip() {
+        let g = Grid::new(5, 4);
+        g.set(Point::new(0, 0), Cell(1));
+        g.set(Point::new(4, 3), Cell(99));
+        g.set(Point::new(2, 1), Cell(42));
+
+        let json = serde_json::to_string(&g).unwrap();
+        let g2: Grid = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(g2.width(), 5);
+        assert_eq!(g2.height(), 4);
+        assert_eq!(g2.at(Point::new(0, 0)), Some(Cell(1)));
+        assert_eq!(g2.at(Point::new(4, 3)), Some(Cell(99)));
+        assert_eq!(g2.at(Point::new(2, 1)), Some(Cell(42)));
+        assert_eq!(g2.at(Point::new(1, 1)), Some(Cell(0)));
+    }
+
+    #[test]
+    fn grid_slice_serializes_visible_content() {
+        let g = Grid::new(10, 10);
+        g.set(Point::new(3, 3), Cell(77));
+        g.set(Point::new(5, 5), Cell(88));
+
+        // Slice covers (3,3)..(6,6) in absolute coords
+        let s = g.slice(Range::new(3, 3, 6, 6));
+        let json = serde_json::to_string(&s).unwrap();
+        let s2: Grid = serde_json::from_str(&json).unwrap();
+
+        // Deserialized grid is 3x3
+        assert_eq!(s2.width(), 3);
+        assert_eq!(s2.height(), 3);
+        // (0,0) in slice = (3,3) in original = Cell(77)
+        assert_eq!(s2.at(Point::new(0, 0)), Some(Cell(77)));
+        // (2,2) in slice = (5,5) in original = Cell(88)
+        assert_eq!(s2.at(Point::new(2, 2)), Some(Cell(88)));
+        // (1,0) was Cell(0)
+        assert_eq!(s2.at(Point::new(1, 0)), Some(Cell(0)));
+    }
+
+    #[test]
+    fn grid_empty_round_trip() {
+        let g = Grid::new(0, 0);
+        let json = serde_json::to_string(&g).unwrap();
+        let g2: Grid = serde_json::from_str(&json).unwrap();
+        assert_eq!(g2.width(), 0);
+        assert_eq!(g2.height(), 0);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

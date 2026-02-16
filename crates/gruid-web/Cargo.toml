@@ -1,0 +1,21 @@
+[package]
+name = "gruid-web"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT OR Apache-2.0"
+description = "WASM browser driver for gruid using Canvas 2D"
+
+[dependencies]
+gruid-core = { path = "../gruid-core" }
+wasm-bindgen = "0.2"
+web-sys = { version = "0.3", features = [
+    "Window", "Document", "HtmlCanvasElement", "CanvasRenderingContext2d",
+    "KeyboardEvent", "MouseEvent", "WheelEvent", "EventTarget",
+    "DomRect", "console", "TextMetrics",
+] }
+js-sys = "0.3"
+wasm-bindgen-futures = "0.4"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

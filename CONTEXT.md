@@ -11,8 +11,8 @@ A Rust reimplementation of [gruid](https://codeberg.org/anaseto/gruid) — a Go
 cross-platform grid-based UI and game framework using the Elm architecture
 (Model-View-Update). Designed for roguelike games but general-purpose.
 
-**Go original:** `/home/exedev/gruid/` (10,290 LOC across 5 packages + 3 driver repos)
-**Rust port:** `/home/exedev/gruid-rs/` (~9,800 LOC across 7 crates + examples)
+**Go original:** cloned as needed from `https://codeberg.org/anaseto/gruid`
+**Rust port:** `/home/exedev/gruid-rs/` (~13,400 LOC across 8 crates + examples)
 **Repo:** https://github.com/HexSleeves/gruid-rs
 
 ---
@@ -267,6 +267,9 @@ cargo run --bin roguelike-winit
 
 # gruid-tiles is excluded from workspace (huge image crate deps)
 # Build separately: cargo check -p gruid-tiles --manifest-path crates/gruid-tiles/Cargo.toml
+
+# gruid-web is excluded (requires wasm32 target)
+# Build: cargo check -p gruid-web --target wasm32-unknown-unknown --manifest-path crates/gruid-web/Cargo.toml
 ```
 
 **Disk space warning:** This VM has limited disk. The full workspace test build
@@ -289,7 +292,9 @@ gruid-core (no deps)
     │
     ├── gruid-winit (depends on gruid-core, winit, softbuffer, fontdue)
     │
-    └── gruid-tiles (depends on gruid-core, image, rusttype) [excluded from workspace]
+    ├── gruid-tiles (depends on gruid-core, image, rusttype) [excluded from workspace]
+    │
+    └── gruid-web (depends on gruid-core, wasm-bindgen, web-sys) [excluded, wasm32 only]
 ```
 
 ---

@@ -3,7 +3,7 @@
 Comprehensive task list for completing the Rust port of [gruid](https://codeberg.org/anaseto/gruid).
 The Go original can be cloned from `https://codeberg.org/anaseto/gruid` for reference.
 
-Current state: ~12,600 LOC across 7 crates, 195 tests passing.
+Current state: ~13,400 LOC across 8 crates, 204 tests passing.
 All P0 (critical bugs/blockers) and P1 (major features) are complete.
 Remaining: P2 (minor methods/polish) and enhancements.
 
@@ -115,10 +115,9 @@ Check if range is fully within another.
 - Mouse interaction (toggle pause, step)
 - Grid auto-resize on larger frames
 
-### P1-C. Serde derives on remaining types
-- `EventQueue<E>`, `rl::Grid`, `FOV`, `PathRange`
-- Gate behind `serde` feature flag
-- Required for save/load in real games
+### ~~P1-C. Serde derives on remaining types~~ ✅
+`EventQueue<E>`, `rl::Grid`, `FOV`, `PathRange` — all behind `serde` feature flag.
+Custom impls for Grid (Rc<RefCell> → flat cells), FOV/PathRange (serialize range only, reconstruct caches).
 
 ---
 
@@ -154,8 +153,9 @@ Check if range is fully within another.
 
 ## 🟦 Enhancement: Beyond Go Original
 
-### E1. WASM driver
-- New `gruid-web` crate using `wasm-bindgen` + Canvas 2D
+### ~~E1. WASM driver~~ ✅
+`gruid-web` crate created. Canvas 2D text rendering, full keyboard/mouse event handling.
+Implements `EventLoopDriver`. Excluded from workspace (requires wasm32 target).
 
 ### E2. GPU-accelerated driver
 - New `gruid-wgpu` crate using `wgpu`
@@ -178,8 +178,8 @@ Check if range is fully within another.
 
 ## Recommended Next Steps
 
-1. **P1-C** — Serde derives (enables save/load for game ports)
-2. **P1-B** — Replay polish (help, mouse, auto-resize)
+1. **Port shamogu** — Prove the framework by porting a real game
+2. **P1-A/B** — Verify StyledText edge cases + Replay polish (as needed during port)
 3. **E4** — Port Go test suite for full confidence
-4. **E1** — WASM driver (biggest impact for reach)
+4. **E5** — Documentation and examples
 5. **P2** — Minor polish as needed during game porting

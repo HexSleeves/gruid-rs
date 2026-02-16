@@ -9,6 +9,14 @@ use std::collections::BinaryHeap;
 
 /// An entry in the event queue.
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "E: serde::Serialize",
+        deserialize = "E: serde::Deserialize<'de>"
+    ))
+)]
 struct Entry<E> {
     event: E,
     rank: i32,
@@ -57,6 +65,14 @@ impl<E> Ord for Entry<E> {
 /// rank, those pushed earlier are dequeued first (FIFO).
 /// [`push_first`](Self::push_first) entries at a given rank come before
 /// [`push`](Self::push) entries at the same rank.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "E: serde::Serialize",
+        deserialize = "E: serde::Deserialize<'de>"
+    ))
+)]
 pub struct EventQueue<E> {
     heap: BinaryHeap<Reverse<Entry<E>>>,
     seq: u64,
@@ -135,6 +151,38 @@ impl<E> EventQueue<E> {
 impl<E> Default for EventQueue<E> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+
+    #[test]
+    fn event_queue_round_trip() {
+        let mut q = EventQueue::new();
+        q.push("alpha".to_string(), 3);
+        q.push("beta".to_string(), 1);
+        q.push("gamma".to_string(), 2);
+        q.push_first("delta".to_string(), 1);
+
+        let json = serde_json::to_string(&q).unwrap();
+        let mut q2: EventQueue<String> = serde_json::from_str(&json).unwrap();
+
+        // Pop order should be preserved: delta (first@1), beta (@1), gamma (@2), alpha (@3)
+        assert_eq!(q2.pop().as_deref(), Some("delta"));
+        assert_eq!(q2.pop().as_deref(), Some("beta"));
+        assert_eq!(q2.pop().as_deref(), Some("gamma"));
+        assert_eq!(q2.pop().as_deref(), Some("alpha"));
+        assert_eq!(q2.pop(), None);
+    }
+
+    #[test]
+    fn event_queue_empty_round_trip() {
+        let q = EventQueue::<i32>::new();
+        let json = serde_json::to_string(&q).unwrap();
+        let q2: EventQueue<i32> = serde_json::from_str(&json).unwrap();
+        assert!(q2.is_empty());
     }
 }
 

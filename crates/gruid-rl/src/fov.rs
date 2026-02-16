@@ -835,6 +835,73 @@ fn slope_square(tile: Point) -> Point {
     Point::new(2 * tile.y - 1, 2 * tile.x + 1)
 }
 
+#[cfg(feature = "serde")]
+mod fov_serde {
+    use super::*;
+
+    impl serde::Serialize for FOV {
+        fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+            self.range.serialize(serializer)
+        }
+    }
+
+    impl<'de> serde::Deserialize<'de> for FOV {
+        fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+            let range = Range::deserialize(deserializer)?;
+            Ok(FOV::new(range))
+        }
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+    use gruid_core::{Point, Range};
+
+    #[test]
+    fn fov_round_trip() {
+        let range = Range::new(0, 0, 20, 20);
+        let fov = FOV::new(range);
+        let json = serde_json::to_string(&fov).unwrap();
+        let fov2: FOV = serde_json::from_str(&json).unwrap();
+        assert_eq!(fov2.range_(), range);
+    }
+
+    #[test]
+    fn fov_round_trip_offset_range() {
+        let range = Range::new(-5, -3, 15, 17);
+        let fov = FOV::new(range);
+        let json = serde_json::to_string(&fov).unwrap();
+        let fov2: FOV = serde_json::from_str(&json).unwrap();
+        assert_eq!(fov2.range_(), range);
+        // Reconstructed FOV should be usable.
+        let lighter = SimpleLighter { max_cost: 3 };
+        fov2.clone_into_check(Point::new(5, 5), &lighter);
+    }
+
+    // Minimal lighter for smoke-testing the reconstructed FOV.
+    struct SimpleLighter {
+        max_cost: i32,
+    }
+    impl Lighter for SimpleLighter {
+        fn cost(&self, _src: Point, _from: Point, _to: Point) -> i32 {
+            1
+        }
+        fn max_cost(&self, _src: Point) -> i32 {
+            self.max_cost
+        }
+    }
+
+    impl FOV {
+        /// Helper to verify a deserialized FOV is functional.
+        fn clone_into_check(&self, src: Point, lt: &impl Lighter) {
+            let mut fov = FOV::new(self.range_());
+            fov.vision_map(lt, src);
+            assert!(fov.at(src).is_some());
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

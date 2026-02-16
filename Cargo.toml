@@ -8,7 +8,7 @@ members = [
     "crates/gruid-winit",
     "examples",
 ]
-exclude = ["crates/gruid-tiles"]
+exclude = ["crates/gruid-tiles", "crates/gruid-web"]
 resolver = "2"
 default-members = ["examples"]
 
