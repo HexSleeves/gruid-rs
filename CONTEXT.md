@@ -20,7 +20,7 @@ cross-platform grid-based UI and game framework using the Elm architecture
 
 ## Current State (as of last update)
 
-- **204 tests pass** (`cargo test --workspace --all-features`, zero failures)
+- **211 tests pass** (`cargo test --workspace --all-features`, zero failures)
 - **Clippy clean** (`cargo clippy --workspace -- -D warnings`, zero warnings)
 - **~94% Go API parity** — all P0 blockers and P1 items closed except Replay polish
 - **3 backends:** terminal (crossterm), native window (winit), browser (gruid-web/WASM)
@@ -224,21 +224,18 @@ render the diff.
 
 ---
 
-## What's Still Missing (6 items)
+## What's Still Missing (3 items)
 
 ### Functional Gaps
 1. **Replay widget** — help overlay (embedded Pager), mouse interaction, grid auto-resize
 2. **Pager line number in footer** — Go shows "Line X/Y" in box footer
-3. **TextInput cursor auto-reverse** — Go auto-swaps fg/bg for cursor
-4. **ModMask Display combos** — should show "Ctrl+Shift" not single values
-5. **StyledText with_textf()/with()** — convenience constructors
 
 ### Performance Gaps
-6. **PathRange SetRange capacity** — Go preserves caches when new size ≤ old capacity
-7. **JPS buffer reuse** — Go accepts pre-allocated `path []Point`
+3. **PathRange SetRange capacity** — Go preserves caches when new size ≤ old capacity
+4. **JPS buffer reuse** — Go accepts pre-allocated `path []Point`
 
 ### Testing Gap
-Go has 3,124 lines of tests across 14 files. Rust has 204 tests.
+Go has 3,124 lines of tests across 14 files. Rust has 211 tests.
 Biggest untested areas: Grid slice edge cases, StyledText format edge cases.
 
 ---

@@ -55,9 +55,30 @@ impl StyledText {
 
     // -- Builders --
 
-    /// Set the text content.
+    /// Return a derived styled text with updated text content.
     pub fn with_text(mut self, text: &str) -> Self {
         self.text = text.to_string();
+        self
+    }
+
+    /// Return a derived styled text with a pre-formatted string.
+    ///
+    /// This is the Rust equivalent of Go gruid's `WithTextf`. Since Rust
+    /// uses `format!()` instead of `fmt.Sprintf`, callers should pass the
+    /// already-formatted string:
+    ///
+    /// ```ignore
+    /// let stt = stt.with_textf(format!("HP: {}/{}", cur, max));
+    /// ```
+    pub fn with_textf(mut self, text: String) -> Self {
+        self.text = text;
+        self
+    }
+
+    /// Return a derived styled text with new text and style.
+    pub fn with(mut self, text: &str, style: Style) -> Self {
+        self.text = text.to_string();
+        self.style = style;
         self
     }
 
@@ -734,6 +755,20 @@ mod tests {
         // @@ takes 1 visible char width
         let stt = StyledText::text("@@").with_markup('x', Style::default());
         assert_eq!(stt.size(), Point::new(1, 1));
+    }
+
+    #[test]
+    fn test_with_textf() {
+        let stt = StyledText::text("old").with_textf(format!("HP: {}/{}", 10, 20));
+        assert_eq!(stt.content(), "HP: 10/20");
+    }
+
+    #[test]
+    fn test_with_text_and_style() {
+        let st = Style::default().with_fg(Color::from_rgb(255, 0, 0));
+        let stt = StyledText::text("old").with("new", st);
+        assert_eq!(stt.content(), "new");
+        assert_eq!(stt.style(), st);
     }
 
     #[test]

@@ -77,8 +77,24 @@ pub struct TextInput {
 
 impl TextInput {
     /// Create a new text input from the given configuration.
+    ///
+    /// If no explicit cursor style is set (i.e. it equals `Style::default()`),
+    /// the cursor style is automatically derived by swapping the foreground
+    /// and background of the text style. This matches Go gruid behaviour.
     pub fn new(config: TextInputConfig) -> Self {
         let cursor = config.content.len();
+        let style = {
+            let mut s = config.style;
+            if s.cursor == Style::default() {
+                // Auto-reverse: swap fg/bg of text style for cursor.
+                s.cursor = Style {
+                    fg: s.text.bg,
+                    bg: s.text.fg,
+                    attrs: s.text.attrs,
+                };
+            }
+            s
+        };
         Self {
             grid: config.grid,
             content: config.content,
@@ -86,7 +102,7 @@ impl TextInput {
             prompt: config.prompt,
             keys: config.keys,
             box_: config.box_,
-            style: config.style,
+            style,
             action: TextInputAction::Pass,
         }
     }
@@ -389,6 +405,44 @@ mod tests {
         });
         input.update(Msg::key(Key::Char('X')));
         assert_eq!(input.content(), "heXllo");
+    }
+
+    #[test]
+    fn cursor_auto_reverse() {
+        let text_style = Style::default()
+            .with_fg(gruid_core::Color::from_rgb(255, 255, 255))
+            .with_bg(gruid_core::Color::from_rgb(0, 0, 0));
+        let input = TextInput::new(TextInputConfig {
+            grid: Grid::new(20, 1),
+            content: String::new(),
+            prompt: None,
+            keys: TextInputKeys::default(),
+            box_: None,
+            style: TextInputStyle {
+                text: text_style,
+                cursor: Style::default(), // triggers auto-reverse
+            },
+        });
+        // Cursor should have fg/bg swapped
+        assert_eq!(input.style.cursor.fg, text_style.bg);
+        assert_eq!(input.style.cursor.bg, text_style.fg);
+    }
+
+    #[test]
+    fn cursor_explicit_no_reverse() {
+        let cursor_style = Style::default().with_fg(gruid_core::Color::from_rgb(255, 0, 0));
+        let input = TextInput::new(TextInputConfig {
+            grid: Grid::new(20, 1),
+            content: String::new(),
+            prompt: None,
+            keys: TextInputKeys::default(),
+            box_: None,
+            style: TextInputStyle {
+                text: Style::default(),
+                cursor: cursor_style, // explicit — no auto-reverse
+            },
+        });
+        assert_eq!(input.style.cursor, cursor_style);
     }
 
     #[test]

@@ -67,14 +67,30 @@ pub struct ModMask(pub u8);
 
 impl std::fmt::Display for ModMask {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            0 => write!(f, "NONE"),
-            1 => write!(f, "SHIFT"),
-            2 => write!(f, "CTRL"),
-            3 => write!(f, "ALT"),
-            4 => write!(f, "META"),
-            _ => write!(f, "UNKNOWN"),
+        if self.is_empty() {
+            return write!(f, "None");
         }
+        let mut first = true;
+        let mut addmod = |name: &str| -> std::fmt::Result {
+            if !first {
+                write!(f, "+")?;
+            }
+            first = false;
+            write!(f, "{}", name)
+        };
+        if self.contains(Self::CTRL) {
+            addmod("Ctrl")?;
+        }
+        if self.contains(Self::ALT) {
+            addmod("Alt")?;
+        }
+        if self.contains(Self::META) {
+            addmod("Meta")?;
+        }
+        if self.contains(Self::SHIFT) {
+            addmod("Shift")?;
+        }
+        Ok(())
     }
 }
 
@@ -283,5 +299,36 @@ impl Msg {
             Self::Custom(arc) => arc.downcast_ref::<T>(),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn modmask_display_none() {
+        assert_eq!(ModMask::NONE.to_string(), "None");
+    }
+
+    #[test]
+    fn modmask_display_single() {
+        assert_eq!(ModMask::SHIFT.to_string(), "Shift");
+        assert_eq!(ModMask::CTRL.to_string(), "Ctrl");
+        assert_eq!(ModMask::ALT.to_string(), "Alt");
+        assert_eq!(ModMask::META.to_string(), "Meta");
+    }
+
+    #[test]
+    fn modmask_display_combo() {
+        assert_eq!((ModMask::CTRL | ModMask::SHIFT).to_string(), "Ctrl+Shift");
+        assert_eq!(
+            (ModMask::CTRL | ModMask::ALT | ModMask::SHIFT).to_string(),
+            "Ctrl+Alt+Shift"
+        );
+        assert_eq!(
+            (ModMask::CTRL | ModMask::ALT | ModMask::META | ModMask::SHIFT).to_string(),
+            "Ctrl+Alt+Meta+Shift"
+        );
     }
 }

@@ -2,7 +2,7 @@
 
 Prioritized task list. See `CONTEXT.md` for architecture details.
 
-Current: 13,500 LOC, 8 crates, 204 tests, ~94% Go API parity.
+Current: 13,500 LOC, 8 crates, 211 tests, ~96% Go API parity.
 
 ---
 
@@ -47,22 +47,9 @@ Current: 13,500 LOC, 8 crates, 204 tests, ~94% Go API parity.
 - Go shows "Line X/Y" in box footer when scrolling
 - **Effort:** ~30 min
 
-### R3. TextInput cursor auto-reverse style
-- **File:** `crates/gruid-ui/src/text_input.rs`
-- Go auto-swaps fg/bg for cursor when no explicit cursor style set
-- **Effort:** ~15 min
-
-### R4. ModMask Display combos
-- **File:** `crates/gruid-core/src/messages.rs`
-- Currently shows "SHIFT" or "CTRL" individually
-- Go shows "Ctrl+Shift" for combined modifiers
-- **Effort:** ~15 min
-
-### R5. StyledText convenience constructors
-- **File:** `crates/gruid-ui/src/styled_text.rs`
-- `with_textf(String)` — pre-formatted text
-- `with(text, style)` — combined text+style
-- **Effort:** ~15 min
+### ✅ R3. TextInput cursor auto-reverse style — DONE
+### ✅ R4. ModMask Display combos — DONE
+### ✅ R5. StyledText convenience constructors — DONE
 
 ### R6. PathRange/JPS performance
 - **Files:** `crates/gruid-paths/src/pathrange.rs`, `jps.rs`
