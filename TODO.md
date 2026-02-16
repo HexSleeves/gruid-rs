@@ -2,7 +2,7 @@
 
 Prioritized task list. See `CONTEXT.md` for architecture details.
 
-Current: ~14,000 LOC, 8 crates, 228 tests, ~99% Go API parity.
+Current: ~14,225 LOC, 8 crates, 228 tests, ~99% Go API parity.
 
 ---
 
@@ -19,7 +19,7 @@ Current: ~14,000 LOC, 8 crates, 228 tests, ~99% Go API parity.
 
 ## ✅ All P1 Major Features — DONE
 
-- ✅ Pager: lines(), set_cursor(Point), start key, 8-col scroll, mouse, view()->Range
+- ✅ Pager: lines(), set_cursor(Point), start key, 8-col scroll, mouse, view()->Range, line-number footer
 - ✅ Menu: mouse (click/wheel/hover/outside-quit), page numbers in footer
 - ✅ Label: background fill, AdjustWidth
 - ✅ BoxDecor: markup-aware title/footer
@@ -30,26 +30,37 @@ Current: ~14,000 LOC, 8 crates, 228 tests, ~99% Go API parity.
 - ✅ MapGen::with_grid()
 - ✅ WASM driver (gruid-web)
 
+## ✅ All P2 Polish — DONE
+
+- ✅ R1: Replay widget (help overlay, mouse, grid auto-resize)
+- ✅ R2: Pager line number in footer
+- ✅ R3: TextInput cursor auto-reverse style
+- ✅ R4: ModMask Display combos ("Ctrl+Shift")
+- ✅ R5: StyledText with_textf/with convenience constructors
+- ✅ R6: PathRange capacity-preserving set_range + JPS jps_path_into buffer reuse
+
 ---
 
-## ✅ All Remaining Gaps — DONE
+## 🟦 Active: Port shamogu (E1)
 
-### ✅ R1. Replay widget polish — DONE
-### ✅ R2. Pager line number in footer — DONE
-### ✅ R3. TextInput cursor auto-reverse style — DONE
-### ✅ R4. ModMask Display combos — DONE
-### ✅ R5. StyledText convenience constructors — DONE
-### ✅ R6. PathRange/JPS performance — DONE
+Port https://codeberg.org/anaseto/shamogu to Rust using gruid-rs.
+This proves the framework and surfaces any remaining gaps.
+See `SHAMOGU_PORT_PROMPT.md` for the full handoff plan.
+
+### Phases
+1. Clone & study Go shamogu (~6k LOC, ~25 files)
+2. Scaffold: new binary crate `shamogu-rs/`, model struct, main
+3. Map generation: port mapgen using gruid-rl MapGen
+4. Player + FOV: movement, vision, draw loop
+5. Monsters + pathfinding: entity system, A* chase AI
+6. Combat + items: bump attack, consumables, inventory
+7. UI: menu, pager, status bar, message log
+8. Animations: Effect::Cmd timers
+9. Save/load: serde
 
 ---
 
 ## 🟦 Enhancements (beyond Go original)
-
-### E1. Port shamogu ← NEXT STEP
-- Port https://codeberg.org/anaseto/shamogu to Rust using gruid-rs
-- This proves the framework and surfaces any remaining gaps
-- Start with: model struct, update loop, draw, map generation
-- Then: monsters, combat, items, animations, menus
 
 ### E2. Port Go test suite
 - Go has 3,124 lines of tests we haven't ported
@@ -65,3 +76,7 @@ Current: ~14,000 LOC, 8 crates, 228 tests, ~99% Go API parity.
 ### E5. Documentation
 - Crate-level rustdoc with examples for each module
 - Standalone examples: menu demo, pathfinding visualizer
+
+### E6. Publish to crates.io
+- Add proper metadata, README per crate, license files
+- Version 0.1.0 initial publish
