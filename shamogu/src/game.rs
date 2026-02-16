@@ -415,14 +415,15 @@ impl Game {
             return;
         }
 
-        // Set FOV range centered on player, intersected with map bounds
+        // Set FOV range centered on player in absolute map coordinates,
+        // intersected with map bounds.
         let fov_rng = gruid_core::Range::new(
-            -MAX_FOV_RANGE,
-            -MAX_FOV_RANGE,
-            MAX_FOV_RANGE + 1,
-            MAX_FOV_RANGE + 1,
+            pp.x - MAX_FOV_RANGE,
+            pp.y - MAX_FOV_RANGE,
+            pp.x + MAX_FOV_RANGE + 1,
+            pp.y + MAX_FOV_RANGE + 1,
         );
-        let map_rng = gruid_core::Range::new(-pp.x, -pp.y, MAP_WIDTH - pp.x, MAP_HEIGHT - pp.y);
+        let map_rng = gruid_core::Range::new(0, 0, MAP_WIDTH, MAP_HEIGHT);
         let effective_rng = fov_rng.intersect(map_rng);
         self.map.fov.set_range(effective_rng);
 
@@ -506,4 +507,79 @@ fn random_floor(terrain: &gruid_rl::grid::Grid, rng: &mut impl Rng) -> Point {
         }
     }
     Point::new(MAP_WIDTH / 2, MAP_HEIGHT / 2)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_game_init() {
+        let mut game = Game::new();
+        game.init();
+
+        // Map has floor tiles
+        let mut floor_count = 0;
+        for y in 0..MAP_HEIGHT {
+            for x in 0..MAP_WIDTH {
+                if game.map.terrain.at(Point::new(x, y)) == Some(FLOOR) {
+                    floor_count += 1;
+                }
+            }
+        }
+        assert!(
+            floor_count > 100,
+            "Expected >100 floor tiles, got {floor_count}"
+        );
+
+        // Player on passable terrain
+        let pp = game.pp();
+        assert_ne!(pp, INVALID_POS);
+        assert!(game.map.terrain.at(pp).is_some_and(passable));
+
+        // FOV revealed terrain
+        assert!(game.in_fov(pp));
+        let known: usize = (0..MAP_HEIGHT)
+            .flat_map(|y| (0..MAP_WIDTH).map(move |x| Point::new(x, y)))
+            .filter(|&p| game.map.known_terrain.at(p).unwrap_or(UNKNOWN) != UNKNOWN)
+            .count();
+        assert!(known > 10, "Expected >10 known tiles, got {known}");
+
+        // Monsters spawned
+        let mon_count = game.monsters().count();
+        assert!(mon_count > 0, "Expected monsters, got {mon_count}");
+    }
+
+    #[test]
+    fn test_combat() {
+        let mut game = Game::new();
+        game.init();
+
+        // Place a test monster adjacent to player
+        let pp = game.pp();
+        let mon_pos = pp.shift(1, 0);
+        // Make sure position is passable first
+        game.map.terrain.set(mon_pos, FLOOR);
+        let data = monster_data(MonsterKind::HungryRat);
+        let actor = Actor::new_monster(data, MonsterKind::HungryRat);
+        let entity = Entity {
+            name: "test rat".to_string(),
+            ch: 'r',
+            pos: mon_pos,
+            known_pos: INVALID_POS,
+            seen: false,
+            role: Role::Actor(actor),
+        };
+        let mon_id = game.entities.len();
+        game.entities.push(Some(entity));
+
+        // Attack the monster
+        let initial_hp = game.entities[mon_id].as_ref().unwrap().actor().unwrap().hp;
+        game.attack(PLAYER_ID, mon_id);
+
+        // Monster should have taken damage or attack missed
+        let hp = game.entities[mon_id].as_ref().unwrap().actor().unwrap().hp;
+        assert!(hp <= initial_hp);
+        assert!(!game.log.entries.is_empty(), "Attack should generate log");
+    }
 }
