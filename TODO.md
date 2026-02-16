@@ -48,15 +48,21 @@ This proves the framework and surfaces any remaining gaps.
 See `SHAMOGU_PORT_PROMPT.md` for the full handoff plan.
 
 ### Phases
-1. Clone & study Go shamogu (~6k LOC, ~25 files)
-2. Scaffold: new binary crate `shamogu-rs/`, model struct, main
-3. Map generation: port mapgen using gruid-rl MapGen
-4. Player + FOV: movement, vision, draw loop
-5. Monsters + pathfinding: entity system, A* chase AI
-6. Combat + items: bump attack, consumables, inventory
-7. UI: menu, pager, status bar, message log
-8. Animations: Effect::Cmd timers
-9. Save/load: serde
+1. ✅ Clone & study Go shamogu (~17k LOC, ~41 files)
+2. ✅ Scaffold: new binary crate `shamogu/`, model struct, main
+3. ✅ Map generation: cellular automata + vaults + tunnels + keep_connected
+4. ✅ Player + FOV: movement, vision_map + ssc_vision_map, draw loop
+5. ✅ Monsters + pathfinding: entity system, A* chase AI, wandering
+6. ✅ Combat: bump-to-attack with probability tables, death handling
+7. ✅ UI: status bar (HP/A/D/Level/Turn), message log (2 lines), help pager
+8. 🔲 Items: spirits, comestibles, inventory menu
+9. 🔲 Animations: Effect::Cmd timers
+10. 🔲 Save/load: serde
+
+### Current State (Phase 1-3 MVP)
+- 9 source files, ~1500 LOC
+- Playable: generated cave map, player @, 14 monster types, FOV, combat
+- `cargo run --bin shamogu`
 
 ---
 

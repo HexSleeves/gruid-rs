@@ -1,0 +1,18 @@
+[package]
+name = "shamogu"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "shamogu"
+path = "src/main.rs"
+
+[dependencies]
+gruid-core      = { workspace = true }
+gruid-paths     = { workspace = true }
+gruid-rl        = { workspace = true }
+gruid-ui        = { workspace = true }
+gruid-crossterm = { workspace = true }
+rand            = { workspace = true }
