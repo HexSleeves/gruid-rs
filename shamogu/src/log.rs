@@ -28,6 +28,12 @@ pub struct GameLog {
     next_tick: bool,
 }
 
+impl Default for GameLog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GameLog {
     pub fn new() -> Self {
         Self {

@@ -43,6 +43,12 @@ pub struct ShamoguModel {
     pager: Option<Pager>,
 }
 
+impl Default for ShamoguModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShamoguModel {
     pub fn new() -> Self {
         Self {

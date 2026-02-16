@@ -21,6 +21,12 @@ pub struct Game {
     pub rng: SmallRng,
 }
 
+impl Default for Game {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Game {
     pub fn new() -> Self {
         let rng = SmallRng::from_os_rng();

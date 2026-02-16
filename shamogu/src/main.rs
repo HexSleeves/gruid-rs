@@ -1,20 +1,8 @@
-//! Shamogu — a roguelike game built on gruid-rs.
-#![allow(dead_code)]
-
-mod colors;
-mod combat;
-mod entity;
-mod fov_;
-mod game;
-mod gamemap;
-mod log;
-mod model;
-mod terrain;
+//! Shamogu terminal (crossterm) entry point.
 
 use gruid_core::app::{App, AppConfig};
 use gruid_crossterm::CrosstermDriver;
-
-use model::{ShamoguModel, UI_HEIGHT, UI_WIDTH};
+use shamogu_lib::{ShamoguModel, UI_HEIGHT, UI_WIDTH};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model = ShamoguModel::new();

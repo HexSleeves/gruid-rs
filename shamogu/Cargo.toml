@@ -5,9 +5,22 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[lib]
+name = "shamogu_lib"
+path = "src/lib.rs"
+
 [[bin]]
 name = "shamogu"
 path = "src/main.rs"
+
+[[bin]]
+name = "shamogu-winit"
+path = "src/main_winit.rs"
+required-features = ["winit"]
+
+[features]
+default = []
+winit = ["dep:gruid-winit"]
 
 [dependencies]
 gruid-core      = { workspace = true }
@@ -15,4 +28,5 @@ gruid-paths     = { workspace = true }
 gruid-rl        = { workspace = true }
 gruid-ui        = { workspace = true }
 gruid-crossterm = { workspace = true }
+gruid-winit     = { workspace = true, optional = true }
 rand            = { workspace = true }

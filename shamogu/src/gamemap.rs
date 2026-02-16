@@ -28,6 +28,12 @@ pub struct GameMap {
     pub level: i32,
 }
 
+impl Default for GameMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GameMap {
     pub fn new() -> Self {
         let terrain = RlGrid::new(MAP_WIDTH, MAP_HEIGHT);
