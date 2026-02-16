@@ -255,6 +255,7 @@ impl FOV {
 
     /// Compute octant parents and find the minimum-cost parent for a position.
     /// Returns a LightNode with cost = stored cost (cost+1 in the array).
+    #[allow(clippy::wrong_self_convention)]
     fn from_internal(&self, lt: &impl Lighter, to: Point) -> LightNode {
         let q = self.src - to;
         let r = Point::new(sign(q.x), sign(q.y));
@@ -1048,17 +1049,17 @@ mod tests {
         let src = Point::new(10, 10);
 
         fov.ssc_vision_map(src, 5, |_| true, true);
-        assert!(fov.visible(Point::new(15, 15)), "pre-filter: corner visible");
+        assert!(
+            fov.visible(Point::new(15, 15)),
+            "pre-filter: corner visible"
+        );
 
         fov.retain_circular(src, 5);
         assert!(
             !fov.visible(Point::new(15, 15)),
             "post-filter: corner not visible"
         );
-        assert!(
-            fov.visible(src),
-            "post-filter: source still visible"
-        );
+        assert!(fov.visible(src), "post-filter: source still visible");
     }
 
     #[test]
@@ -1083,11 +1084,7 @@ mod tests {
                     return 0;
                 }
                 let step = Point::new(to.x - from.x, to.y - from.y);
-                if step.x != 0 && step.y != 0 {
-                    2
-                } else {
-                    1
-                }
+                if step.x != 0 && step.y != 0 { 2 } else { 1 }
             }
             fn max_cost(&self, _src: Point) -> i32 {
                 self.max
@@ -1120,6 +1117,10 @@ mod tests {
         // Verify the ray has correct length (6 nodes: source + 5 steps).
         let ray = fov.ray(&lt, Point::new(5, 0));
         assert!(ray.is_some());
-        assert_eq!(ray.unwrap().len(), 6, "ray from (0,0) to (5,0) should have 6 nodes");
+        assert_eq!(
+            ray.unwrap().len(),
+            6,
+            "ray from (0,0) to (5,0) should have 6 nodes"
+        );
     }
 }

@@ -149,8 +149,7 @@ impl PartialEq for Range {
     /// Two ranges are equal if they describe the same set of points.
     /// All empty ranges are considered equal, matching Go gruid behavior.
     fn eq(&self, other: &Self) -> bool {
-        (self.min == other.min && self.max == other.max)
-            || (self.is_empty() && other.is_empty())
+        (self.min == other.min && self.max == other.max) || (self.is_empty() && other.is_empty())
     }
 }
 
@@ -202,8 +201,9 @@ impl Range {
 
     /// Return a range of same size translated by `+p`.
     ///
-    /// Matches Go gruid's `Range.Add`.
+    /// Matches Go gruid's `Range.Add`. Also available via `range + point`.
     #[inline]
+    #[allow(clippy::should_implement_trait)]
     pub fn add(self, p: Point) -> Self {
         Self {
             min: self.min + p,
@@ -213,8 +213,9 @@ impl Range {
 
     /// Return a range of same size translated by `-p`.
     ///
-    /// Matches Go gruid's `Range.Sub`.
+    /// Matches Go gruid's `Range.Sub`. Also available via `range - point`.
     #[inline]
+    #[allow(clippy::should_implement_trait)]
     pub fn sub(self, p: Point) -> Self {
         Self {
             min: self.min - p,
@@ -232,11 +233,7 @@ impl Range {
             min: self.min.shift(dx0, dy0),
             max: self.max.shift(dx1, dy1),
         };
-        if r.is_empty() {
-            Self::default()
-        } else {
-            r
-        }
+        if r.is_empty() { Self::default() } else { r }
     }
 
     /// Reduces the range to **relative** line `y` (0 = first line of the range).
@@ -339,11 +336,7 @@ impl Range {
             min: Point::new(self.min.x.max(other.min.x), self.min.y.max(other.min.y)),
             max: Point::new(self.max.x.min(other.max.x), self.max.y.min(other.max.y)),
         };
-        if r.is_empty() {
-            Self::default()
-        } else {
-            r
-        }
+        if r.is_empty() { Self::default() } else { r }
     }
 
     /// Smallest range that contains both ranges.
@@ -819,6 +812,30 @@ mod tests {
                 assert_eq!(key, crate::messages::Key::Enter);
             }
             _ => panic!("expected KeyDown variant"),
+        }
+    }
+}
+
+impl Add<Point> for Range {
+    type Output = Range;
+
+    #[inline]
+    fn add(self, p: Point) -> Range {
+        Range {
+            min: self.min + p,
+            max: self.max + p,
+        }
+    }
+}
+
+impl Sub<Point> for Range {
+    type Output = Range;
+
+    #[inline]
+    fn sub(self, p: Point) -> Range {
+        Range {
+            min: self.min - p,
+            max: self.max - p,
         }
     }
 }

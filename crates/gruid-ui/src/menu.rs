@@ -251,7 +251,10 @@ impl Menu {
 
         // Draw box if present, with page number footer.
         if let Some(ref box_decor) = self.box_ {
-            let pg = self.table.get(&self.active).map_or(Point::ZERO, |it| it.page);
+            let pg = self
+                .table
+                .get(&self.active)
+                .map_or(Point::ZERO, |it| it.page);
             let lnumtext = if self.pages.x == 0 && self.pages.y == 0 {
                 String::new()
             } else if self.pages.x == 0 {
@@ -274,7 +277,9 @@ impl Menu {
         let active_page = active_item.map_or(Point::ZERO, |it| it.page);
 
         for (&pos, it) in &self.table {
-            if it.page != active_page { continue; }
+            if it.page != active_page {
+                continue;
+            }
             let entry = &self.entries[it.i];
             let mut st = entry.text.style();
             let is_active = pos == self.active && !entry.disabled;
@@ -382,7 +387,9 @@ impl Menu {
 
     /// Bounding range of the active entry (relative to the grid).
     pub fn active_bounds(&self) -> Range {
-        self.table.get(&self.active).map_or(Range::default(), |it| it.bounds)
+        self.table
+            .get(&self.active)
+            .map_or(Range::default(), |it| it.bounds)
     }
 
     /// Bounding range of the visible menu area (including box).
@@ -393,12 +400,20 @@ impl Menu {
     /// Current page number (0-based, Y-page for column/table, X-page for line).
     pub fn page(&self) -> usize {
         let pg = self.cur_page();
-        if self.pages.y > 0 { pg.y as usize } else { pg.x as usize }
+        if self.pages.y > 0 {
+            pg.y as usize
+        } else {
+            pg.x as usize
+        }
     }
 
     /// Total number of pages.
     pub fn page_count(&self) -> usize {
-        let p = if self.pages.y > 0 { self.pages.y } else { self.pages.x };
+        let p = if self.pages.y > 0 {
+            self.pages.y
+        } else {
+            self.pages.x
+        };
         (p + 1) as usize
     }
 
@@ -407,7 +422,11 @@ impl Menu {
     // ---------------------------------------------------------------
 
     fn idx_to_pos(&self, i: usize) -> Point {
-        if i < self.points.len() { self.points[i] } else { Point::ZERO }
+        if i < self.points.len() {
+            self.points[i]
+        } else {
+            Point::ZERO
+        }
     }
 
     fn contains_pos(&self, p: Point) -> bool {
@@ -415,11 +434,15 @@ impl Menu {
     }
 
     fn current_disabled(&self) -> bool {
-        self.table.get(&self.active).map_or(true, |it| self.entries[it.i].disabled)
+        self.table
+            .get(&self.active)
+            .is_none_or(|it| self.entries[it.i].disabled)
     }
 
     fn cur_page(&self) -> Point {
-        self.table.get(&self.active).map_or(Point::ZERO, |it| it.page)
+        self.table
+            .get(&self.active)
+            .map_or(Point::ZERO, |it| it.page)
     }
 
     // ---------------------------------------------------------------
@@ -429,7 +452,10 @@ impl Menu {
     fn cursor_at_first_choice(&mut self) {
         let mut j = 0;
         for (i, e) in self.entries.iter().enumerate() {
-            if !e.disabled { j = i; break; }
+            if !e.disabled {
+                j = i;
+                break;
+            }
         }
         self.active = self.idx_to_pos(j);
     }
@@ -437,7 +463,9 @@ impl Menu {
     fn cursor_at_last_choice(&mut self) {
         let mut j = self.entries.len().saturating_sub(1);
         for (i, e) in self.entries.iter().enumerate() {
-            if !e.disabled { j = i; }
+            if !e.disabled {
+                j = i;
+            }
         }
         self.active = self.idx_to_pos(j);
     }
@@ -485,25 +513,33 @@ impl Menu {
             (0, 1) => {
                 for i in (cur_i + 1)..self.entries.len() {
                     let q = self.idx_to_pos(i);
-                    if self.table[&q].page.y > cur_page.y { return Some(q); }
+                    if self.table[&q].page.y > cur_page.y {
+                        return Some(q);
+                    }
                 }
             }
             (1, 0) => {
                 for i in (cur_i + 1)..self.entries.len() {
                     let q = self.idx_to_pos(i);
-                    if self.table[&q].page.x > cur_page.x { return Some(q); }
+                    if self.table[&q].page.x > cur_page.x {
+                        return Some(q);
+                    }
                 }
             }
             (0, -1) => {
                 for i in (0..cur_i).rev() {
                     let q = self.idx_to_pos(i);
-                    if self.table[&q].page.y < cur_page.y { return Some(q); }
+                    if self.table[&q].page.y < cur_page.y {
+                        return Some(q);
+                    }
                 }
             }
             (-1, 0) => {
                 for i in (0..cur_i).rev() {
                     let q = self.idx_to_pos(i);
-                    if self.table[&q].page.x < cur_page.x { return Some(q); }
+                    if self.table[&q].page.x < cur_page.x {
+                        return Some(q);
+                    }
                 }
             }
             _ => {}
@@ -512,7 +548,11 @@ impl Menu {
     }
 
     fn page_down(&mut self) {
-        let d = if self.pages.y > 0 { Point::new(0, 1) } else { Point::new(1, 0) };
+        let d = if self.pages.y > 0 {
+            Point::new(0, 1)
+        } else {
+            Point::new(1, 0)
+        };
         if let Some(q) = self.find_next_page(d) {
             self.active = q;
             self.action = MenuAction::Move;
@@ -520,7 +560,11 @@ impl Menu {
     }
 
     fn page_up(&mut self) {
-        let d = if self.pages.y > 0 { Point::new(0, -1) } else { Point::new(-1, 0) };
+        let d = if self.pages.y > 0 {
+            Point::new(0, -1)
+        } else {
+            Point::new(-1, 0)
+        };
         if let Some(q) = self.find_next_page(d) {
             // find_next_page returns the last entry on the prev page;
             // walk forward to find the first entry on that same page.
@@ -538,15 +582,16 @@ impl Menu {
         }
     }
 
-
-
     // ---------------------------------------------------------------
     // Mouse helpers
     // ---------------------------------------------------------------
 
     /// Visible range of the menu for the current page (including box).
     fn page_grid_range(&self) -> Range {
-        let active_page = self.table.get(&self.active).map_or(Point::ZERO, |it| it.page);
+        let active_page = self
+            .table
+            .get(&self.active)
+            .map_or(Point::ZERO, |it| it.page);
 
         if self.layout.y > 0 && self.layout.x == 0 {
             // Column with row-limit: union of bounds on this page
@@ -565,11 +610,17 @@ impl Menu {
         // Count visible rows on current page (column 0 only)
         let mut h = 0i32;
         for (p, it) in &self.table {
-            if p.x > 0 { continue; }
-            if it.page != active_page { continue; }
+            if p.x > 0 {
+                continue;
+            }
+            if it.page != active_page {
+                continue;
+            }
             h += 1;
         }
-        if self.box_.is_some() { h += 2; }
+        if self.box_.is_some() {
+            h += 2;
+        }
         let max = self.grid.size();
         Range::new(0, 0, max.x, h)
     }
@@ -588,10 +639,15 @@ impl Menu {
     }
 
     fn move_to_point(&mut self, p: Point) {
-        let page = self.table.get(&self.active).map_or(Point::ZERO, |it| it.page);
+        let page = self
+            .table
+            .get(&self.active)
+            .map_or(Point::ZERO, |it| it.page);
         for (&q, it) in &self.table {
             if it.page == page && it.bounds.contains(p) {
-                if q == self.active { return; }
+                if q == self.active {
+                    return;
+                }
                 self.active = q;
                 self.action = MenuAction::Move;
                 return;
@@ -600,7 +656,10 @@ impl Menu {
     }
 
     fn invoke_point(&mut self, p: Point) {
-        let page = self.table.get(&self.active).map_or(Point::ZERO, |it| it.page);
+        let page = self
+            .table
+            .get(&self.active)
+            .map_or(Point::ZERO, |it| it.page);
         for (&q, it) in &self.table {
             if it.page == page && it.bounds.contains(p) {
                 self.active = q;
@@ -622,16 +681,24 @@ impl Menu {
         self.layout = self.style.layout;
         let gs = self.grid.size();
         let n = self.entries.len() as i32;
-        if self.layout.y > gs.y { self.layout.y = gs.y; }
-        if self.layout.y > n   { self.layout.y = n; }
-        if self.layout.x > n   { self.layout.x = n; }
+        if self.layout.y > gs.y {
+            self.layout.y = gs.y;
+        }
+        if self.layout.y > n {
+            self.layout.y = n;
+        }
+        if self.layout.x > n {
+            self.layout.x = n;
+        }
     }
 
     fn get_layout(&self, w: i32, _h: i32) -> (LayoutKind, i32, i32) {
         let n = self.entries.len() as i32;
         let mut lines = self.layout.y;
         let nw = w;
-        if lines <= 0 { lines = n; }
+        if lines <= 0 {
+            lines = n;
+        }
         let mut columns = self.layout.x;
         if columns <= 0 {
             columns = if lines == n { 1 } else { n };
@@ -639,7 +706,9 @@ impl Menu {
         if lines * columns > n {
             columns = if lines > 0 { n / lines } else { 1 };
         }
-        if columns < 1 { columns = 1; }
+        if columns < 1 {
+            columns = 1;
+        }
         if columns > 1 && lines > 1 {
             (LayoutKind::Table, nw / columns, columns)
         } else if columns > 1 {
@@ -654,8 +723,12 @@ impl Menu {
 
         // Compute draw-grid height.
         let mut h = self.entries.len() as i32;
-        if self.layout.y > 0 { h = self.layout.y; }
-        if self.box_.is_some() { h += 2; }
+        if self.layout.y > 0 {
+            h = self.layout.y;
+        }
+        if self.box_.is_some() {
+            h += 2;
+        }
         let gs = self.grid.size();
         let draw_h = h.min(gs.y);
 
@@ -682,10 +755,19 @@ impl Menu {
                     let page_y = (i as i32) / ch;
                     let pos = Point::new(0, i as i32);
                     let bounds = Range::new(
-                        inner_x, inner_y + row_in_page,
-                        inner_x + cw, inner_y + row_in_page + 1,
+                        inner_x,
+                        inner_y + row_in_page,
+                        inner_x + cw,
+                        inner_y + row_in_page + 1,
                     );
-                    self.table.insert(pos, Item { bounds, i, page: Point::new(0, page_y) });
+                    self.table.insert(
+                        pos,
+                        Item {
+                            bounds,
+                            i,
+                            page: Point::new(0, page_y),
+                        },
+                    );
                     self.points.push(pos);
                 }
             }
@@ -704,11 +786,15 @@ impl Menu {
                     };
                     to = new_to;
                     let pos = Point::new(i as i32, 0);
-                    let bounds = Range::new(
-                        inner_x + from, inner_y,
-                        inner_x + to, inner_y + 1,
+                    let bounds = Range::new(inner_x + from, inner_y, inner_x + to, inner_y + 1);
+                    self.table.insert(
+                        pos,
+                        Item {
+                            bounds,
+                            i,
+                            page: Point::new(hpage, 0),
+                        },
                     );
-                    self.table.insert(pos, Item { bounds, i, page: Point::new(hpage, 0) });
                     self.points.push(pos);
                 }
             }
@@ -721,10 +807,19 @@ impl Menu {
                     let col = pageidx / h;
                     let pos = Point::new(col, ln + page * h);
                     let bounds = Range::new(
-                        inner_x + col * cw, inner_y + ln,
-                        inner_x + (col + 1) * cw, inner_y + ln + 1,
+                        inner_x + col * cw,
+                        inner_y + ln,
+                        inner_x + (col + 1) * cw,
+                        inner_y + ln + 1,
                     );
-                    self.table.insert(pos, Item { bounds, i, page: Point::new(0, page) });
+                    self.table.insert(
+                        pos,
+                        Item {
+                            bounds,
+                            i,
+                            page: Point::new(0, page),
+                        },
+                    );
                     self.points.push(pos);
                 }
             }
@@ -732,8 +827,12 @@ impl Menu {
 
         // Update max pages.
         for it in self.table.values() {
-            if it.page.x > self.pages.x { self.pages.x = it.page.x; }
-            if it.page.y > self.pages.y { self.pages.y = it.page.y; }
+            if it.page.x > self.pages.x {
+                self.pages.x = it.page.x;
+            }
+            if it.page.y > self.pages.y {
+                self.pages.y = it.page.y;
+            }
         }
     }
 }

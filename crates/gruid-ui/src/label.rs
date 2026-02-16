@@ -80,7 +80,11 @@ impl Label {
         };
 
         // Fill the content area with the base style background.
-        content_grid.fill(Cell::default().with_char(' ').with_style(self.content.style()));
+        content_grid.fill(
+            Cell::default()
+                .with_char(' ')
+                .with_style(self.content.style()),
+        );
 
         self.content.draw(&content_grid);
         draw_rg
@@ -90,12 +94,16 @@ impl Label {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gruid_core::{Point, Style};
     use gruid_core::style::{AttrMask, Color};
+    use gruid_core::{Point, Style};
 
     #[test]
     fn background_fill() {
-        let style = Style { fg: Color(1), bg: Color(2), attrs: AttrMask(0) };
+        let style = Style {
+            fg: Color(1),
+            bg: Color(2),
+            attrs: AttrMask(0),
+        };
         let label = Label {
             content: StyledText::new("Hi", style),
             box_: None,

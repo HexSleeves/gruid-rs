@@ -126,7 +126,9 @@ impl Pager {
                     self.right();
                 } else if self.keys.start.contains(key) {
                     self.line_start();
-                } else if self.keys.page_down.contains(key) || self.keys.half_page_down.contains(key) {
+                } else if self.keys.page_down.contains(key)
+                    || self.keys.half_page_down.contains(key)
+                {
                     let mut shift = nlines - 1;
                     if self.keys.half_page_down.contains(key) {
                         shift /= 2;
@@ -146,9 +148,7 @@ impl Pager {
                     self.action = PagerAction::Quit;
                 }
             }
-            Msg::Mouse {
-                action, pos, ..
-            } => {
+            Msg::Mouse { action, pos, .. } => {
                 let (h, bh) = self.height();
                 let nlines_vis = h - bh;
                 let grid_range = self.grid.range_().lines(0, h);
@@ -248,7 +248,7 @@ impl Pager {
     pub fn set_lines(&mut self, lines: Vec<StyledText>) {
         let nlines = self.visible_height();
         self.lines = lines;
-        if self.scroll_y + nlines - 1 >= self.lines.len() as i32 {
+        if self.scroll_y + nlines > self.lines.len() as i32 {
             self.scroll_y = self.lines.len() as i32 - nlines;
             if self.scroll_y < 0 {
                 self.scroll_y = 0;
@@ -264,7 +264,7 @@ impl Pager {
         self.scroll_x = pos.x.max(0);
         let nlines = self.visible_height();
         self.scroll_y = pos.y;
-        if self.scroll_y + nlines - 1 >= self.lines.len() as i32 {
+        if self.scroll_y + nlines > self.lines.len() as i32 {
             self.scroll_y = self.lines.len() as i32 - nlines;
         }
         if self.scroll_y < 0 {
@@ -317,7 +317,7 @@ impl Pager {
 
     fn down(&mut self, mut shift: i32) {
         let nlines = self.visible_height();
-        if self.scroll_y + nlines + shift - 1 >= self.lines.len() as i32 {
+        if self.scroll_y + nlines + shift > self.lines.len() as i32 {
             shift = self.lines.len() as i32 - self.scroll_y - nlines;
         }
         if shift > 0 {
@@ -623,33 +623,13 @@ mod tests {
         for i in -1..=20 {
             pager.set_cursor(Point::new(0, i));
             let view = pager.view();
-            assert!(
-                view.min.y >= 0,
-                "view min y: {} ({})",
-                view.min.y,
-                i
-            );
-            assert!(
-                view.max.y <= 20,
-                "view max y: {} ({})",
-                view.max.y,
-                i
-            );
+            assert!(view.min.y >= 0, "view min y: {} ({})", view.min.y, i);
+            assert!(view.max.y <= 20, "view max y: {} ({})", view.max.y, i);
             if i >= 0 && i <= 14 {
-                assert_eq!(
-                    view.max.y,
-                    i + 6,
-                    "view max y: {} ({})",
-                    view.max.y,
-                    i
-                );
+                assert_eq!(view.max.y, i + 6, "view max y: {} ({})", view.max.y, i);
             }
             if i == 14 {
-                assert_eq!(
-                    view.min.y, i,
-                    "view min y: {} ({})",
-                    view.min.y, i
-                );
+                assert_eq!(view.min.y, i, "view min y: {} ({})", view.min.y, i);
             }
             if i == 15 {
                 assert_ne!(

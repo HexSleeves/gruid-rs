@@ -249,12 +249,13 @@ impl StyledText {
         let mut procm = false;
         let mut start = true;
 
-        let do_last_word = |s: &mut String, wordbuf: &str, wantspace: bool, wlen: i32, col: i32, width: i32| {
-            if wantspace {
-                add_space(s, wlen + col + 1 > width);
-            }
-            s.push_str(wordbuf);
-        };
+        let do_last_word =
+            |s: &mut String, wordbuf: &str, wantspace: bool, wlen: i32, col: i32, width: i32| {
+                if wantspace {
+                    add_space(s, wlen + col + 1 > width);
+                }
+                s.push_str(wordbuf);
+            };
 
         for ch in self.text.chars() {
             if ch == '\r' {
@@ -322,7 +323,7 @@ impl StyledText {
             do_last_word(&mut s, &wordbuf, wantspace, wlen, col, width);
         }
         // Trim trailing spaces and newlines
-        let trimmed = s.trim_end_matches(|c: char| c == ' ' || c == '\n');
+        let trimmed = s.trim_end_matches([' ', '\n']);
         StyledText {
             text: trimmed.to_string(),
             style: self.style,
@@ -350,7 +351,7 @@ impl StyledText {
         }
 
         let mut markup_rune_start: char = 'N'; // markup rune at line start
-        let mut markup_rune: char = 'N';       // current markup rune
+        let mut markup_rune: char = 'N'; // current markup rune
         let mut procm = false;
         let mut stts = Vec::new();
         let mut from = 0usize;
@@ -439,11 +440,7 @@ impl StyledText {
 ///
 /// When `procm` is false, returns true only for `@` (to start markup processing).
 fn proc_markup(procm: bool, r: char) -> bool {
-    if procm {
-        r != '@'
-    } else {
-        r == '@'
-    }
+    if procm { r != '@' } else { r == '@' }
 }
 
 /// Append a newline or a space to the string builder.

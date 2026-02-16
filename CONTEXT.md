@@ -210,33 +210,43 @@ The Go original is cloned at `/home/exedev/gruid/`. Key files:
 
 ## Known Working State
 
-- **85 tests pass** (`cargo test -p gruid-core -p gruid-paths -p gruid-rl -p gruid-ui -p gruid-crossterm`)
-- **Workspace compiles clean** (`cargo check --workspace`, zero warnings)
+- **195 tests pass** (`cargo test --workspace`, zero failures)
+- **Workspace compiles clean** (`cargo clippy --workspace -- -D warnings`, zero warnings)
+- **Code formatted** (`cargo fmt --all`)
 - **Grid relative coordinates** — both gruid-core and gruid-rl match Go semantics
+- **Grid Resize** — both gruid-core and gruid-rl, content-preserving
+- **Grid Display** — `impl Display for Grid` for debugging
+- **Range** — relative Line/Lines/Column/Columns, Add/Sub translation, In containment,
+  RelMsg for mouse position adjustment, empty normalization in PartialEq
 - **JPS 4-way and 8-way** — both work, faithfully ported from Go
 - **FOV VisionMap + SSC** — both work, match Go algorithms, with From/Ray/LightMap
+- **FOV from()** — bug fixed (no longer double-counts lt.cost())
 - **Vault system** — parse, draw, reflect, rotate — matches Go
 - **KeepCC** — uses PathRange CC labels to keep largest connected component
+- **Neighbors** — all (8-way), cardinal (4-way), diagonal (4-way)
 - **Sub effects** — Cmd/Sub spawn background threads, messages fed back via channel
 - **Frame recording** — real binary encoder/decoder with time_ms for replay
 - **Replay widget** — auto-play, speed control, pause, stepping, seeking, undo
-- **Menu widget** — keyboard, mouse, pagination, disabled-entry skip
-- **Pager widget** — vertical/horizontal scroll, half-page, top/bottom, mouse wheel
+- **Menu widget** — 2D grid layout, keyboard, mouse (click/wheel/hover/outside-quit),
+  pagination with page numbers, disabled-entry skip, active_invokable
+- **Pager widget** — vertical/horizontal scroll (8-col step), half-page, top/bottom,
+  mouse wheel + click page up/down, lines(), set_cursor(Point), view()->Range, start key
 - **TextInput widget** — prompt, cursor, mouse click-to-position
+- **StyledText** — full `@`-prefix markup protocol: `@X` switch, `@N` reset, `@@` escape,
+  `\r` stripping, cross-line state preservation, format with zero-width markup
+- **Label** — background fill, AdjustWidth functional
+- **BoxDecor** — markup-aware title/footer rendering
+- **rl::Grid** — for_each_mut, map_cells_mut, at_unchecked, resize, copy_from returns Point
 - **Roguelike demo** — cave gen, FOV, monsters with A* AI, combat, Dijkstra heatmap,
   A* path overlay, look mode, mouse click-to-move, status bar, message log, help pager
 - **Winit DPI scaling** works on Retina displays
 
 ## Known Incomplete / Missing
 
-- **Grid Resize** — not implemented (both core and rl)
-- **StyledText @r markup** — partial (basic markup works, full Go syntax not verified)
-- **Menu multi-column layout** — not yet implemented
-- **Label auto-sizing** — not implemented
-- **Neighbors::diagonal()** — missing
 - **Serde derives** — only on core types, not on FOV/PathRange/EventQueue/rl::Grid
-- **Msg extensibility** — closed enum, no `Msg::Custom` variant
-- **P2 minor methods** — see TODO.md
+- **Replay** — missing help overlay, mouse interaction, grid auto-resize
+- **StyledText lines()** — markup state preservation needs edge case verification
+- **P2 minor methods** — see TODO.md (Key helpers, PathRange capacity opt, etc.)
 
 ---
 

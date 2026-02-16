@@ -118,9 +118,9 @@ mod tests {
         let mut nb = Neighbors::new();
         let p = Point::new(10, 10);
         let result = nb.diagonal(p, |_| true);
-        assert_eq!(result[0], Point::new(9, 9));   // NW: shift(-1,-1)
-        assert_eq!(result[1], Point::new(11, 9));  // NE: shift( 1,-1)
-        assert_eq!(result[2], Point::new(9, 11));  // SW: shift(-1, 1)
+        assert_eq!(result[0], Point::new(9, 9)); // NW: shift(-1,-1)
+        assert_eq!(result[1], Point::new(11, 9)); // NE: shift( 1,-1)
+        assert_eq!(result[2], Point::new(9, 11)); // SW: shift(-1, 1)
         assert_eq!(result[3], Point::new(11, 11)); // SE: shift( 1, 1)
     }
 
