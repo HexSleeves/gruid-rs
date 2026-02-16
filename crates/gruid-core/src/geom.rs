@@ -452,6 +452,30 @@ impl Iterator for RangeIter {
 
 impl ExactSizeIterator for RangeIter {}
 
+impl Add<Point> for Range {
+    type Output = Range;
+
+    #[inline]
+    fn add(self, p: Point) -> Range {
+        Range {
+            min: self.min + p,
+            max: self.max + p,
+        }
+    }
+}
+
+impl Sub<Point> for Range {
+    type Output = Range;
+
+    #[inline]
+    fn sub(self, p: Point) -> Range {
+        Range {
+            min: self.min - p,
+            max: self.max - p,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -812,30 +836,6 @@ mod tests {
                 assert_eq!(key, crate::messages::Key::Enter);
             }
             _ => panic!("expected KeyDown variant"),
-        }
-    }
-}
-
-impl Add<Point> for Range {
-    type Output = Range;
-
-    #[inline]
-    fn add(self, p: Point) -> Range {
-        Range {
-            min: self.min + p,
-            max: self.max + p,
-        }
-    }
-}
-
-impl Sub<Point> for Range {
-    type Output = Range;
-
-    #[inline]
-    fn sub(self, p: Point) -> Range {
-        Range {
-            min: self.min - p,
-            max: self.max - p,
         }
     }
 }

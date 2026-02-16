@@ -625,7 +625,7 @@ mod tests {
             let view = pager.view();
             assert!(view.min.y >= 0, "view min y: {} ({})", view.min.y, i);
             assert!(view.max.y <= 20, "view max y: {} ({})", view.max.y, i);
-            if i >= 0 && i <= 14 {
+            if (0..=14).contains(&i) {
                 assert_eq!(view.max.y, i + 6, "view max y: {} ({})", view.max.y, i);
             }
             if i == 14 {

@@ -44,14 +44,14 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use gruid_core::{
-    AppRunner, EventLoopDriver, Point,
     grid::Frame,
     messages::{Key, ModMask, MouseAction, Msg},
     style::Color,
+    AppRunner, EventLoopDriver, Point,
 };
 
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 use web_sys::{
     CanvasRenderingContext2d, Document, HtmlCanvasElement, KeyboardEvent, MouseEvent, WheelEvent,
     Window,
