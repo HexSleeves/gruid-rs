@@ -1,185 +1,96 @@
-# gruid-rs TODO — Full Port Gap Analysis
+# gruid-rs TODO
 
-Comprehensive task list for completing the Rust port of [gruid](https://codeberg.org/anaseto/gruid).
-The Go original can be cloned from `https://codeberg.org/anaseto/gruid` for reference.
+Prioritized task list. See `CONTEXT.md` for architecture details.
 
-Current state: ~13,400 LOC across 8 crates, 204 tests passing.
-All P0 (critical bugs/blockers) and P1 (major features) are complete.
-Remaining: P2 (minor methods/polish) and enhancements.
+Current: 13,500 LOC, 8 crates, 204 tests, ~94% Go API parity.
 
 ---
 
-## ✅ Completed: P0 Blockers (Go Parity)
+## ✅ All P0 Blockers — DONE
 
-All P0 items resolved in parallel agent batch.
+1. ✅ StyledText `@`-prefix markup protocol
+2. ✅ Menu 2D grid layout + ActiveInvokable
+3. ✅ Range relative Line/Lines/Column/Columns
+4. ✅ Range Add/Sub translation + RelMsg
+5. ✅ Grid Resize (core + rl)
+6. ✅ rl::Grid mutable iteration (for_each_mut, map_cells_mut, at_unchecked)
+7. ✅ FOV from() bug fixed
+8. ✅ Serde on all key types (PathRange, EventQueue, rl::Grid, FOV)
 
-### ~~P0-1. StyledText `@`-prefix markup~~ ✅
-Full `@X` switch, `@N` reset, `@@` escape, `\r` stripping, cross-line state preservation.
+## ✅ All P1 Major Features — DONE
 
-### ~~P0-2. Menu 2D grid layout~~ ✅
-`MenuStyle.layout` with multi-column/row pagination. Mouse support (click/wheel/hover/outside-quit).
-
-### ~~P0-3. Menu ActiveInvokable~~ ✅
-`active_invokable()` and `set_active_invokable()` for indexing past disabled entries.
-
-### ~~P0-4. Range relative Line/Lines/Column/Columns~~ ✅
-Switched to relative coordinates with intersection clamping, matching Go.
-
-### ~~P0-5. Range Add/Sub translation~~ ✅
-`Range::add(p)` / `Range::sub(p)` + `Add<Point>`/`Sub<Point>` trait impls.
-
-### ~~P0-6. Range RelMsg~~ ✅
-`Range::rel_msg(msg)` adjusts mouse positions relative to sub-grid.
-
-### ~~P0-7. Grid Resize~~ ✅
-Both `gruid-core::Grid` and `gruid-rl::Grid`. Content-preserving resize.
-
-### ~~P0-8. rl::Grid mutable iteration~~ ✅
-`for_each_mut()`, `map_cells_mut()`, `at_unchecked()`, `copy_from` returns Point.
+- ✅ Pager: lines(), set_cursor(Point), start key, 8-col scroll, mouse, view()->Range
+- ✅ Menu: mouse (click/wheel/hover/outside-quit), page numbers in footer
+- ✅ Label: background fill, AdjustWidth
+- ✅ BoxDecor: markup-aware title/footer
+- ✅ Neighbors: diagonal()
+- ✅ StyledText lines() markup state preservation
+- ✅ Grid Display, points() iterator
+- ✅ Range PartialEq empty normalization, In containment
+- ✅ MapGen::with_grid()
+- ✅ WASM driver (gruid-web)
 
 ---
 
-## ✅ Completed: P1 Important (Feature Parity)
+## 🟡 Remaining Small Gaps (6 items)
 
-### ~~P1-1. FOV from() bug~~ ✅
-Removed double-counting of `lt.cost()` in `from()` method.
-
-### ~~P1-2. Neighbors::diagonal()~~ ✅
-4 diagonal neighbors, matching Go order.
-
-### ~~P1-3. Label background fill~~ ✅
-Fills area with base style before drawing content.
-
-### ~~P1-4. Label AdjustWidth~~ ✅
-Functional — shrinks returned drawing area to content width.
-
-### ~~P1-5. BoxDecor markup title/footer~~ ✅
-Uses `StyledText::draw()` for markup-aware rendering.
-
-### ~~P1-6. Pager enhancements~~ ✅
-`lines()`, `set_cursor(Point)`, `PagerKeys::start`, 8-col horizontal scroll, `view()->Range`, mouse click page up/down.
-
-### ~~P1-7. Menu enhancements~~ ✅
-Page numbers in footer, mouse click outside quit, wheel paging.
-
-### ~~P1-8. Grid Display~~ ✅
-`impl Display for Grid` — renders as text for debugging.
-
-### ~~P1-9. Grid points() iterator~~ ✅
-Convenience `points()` method for Point-only iteration.
-
-### ~~P1-10. Range shift empty safety~~ ✅
-Returns empty range when result would be empty.
-
-### ~~P1-11. Range PartialEq empty normalization~~ ✅
-All empty ranges compare equal.
-
-### ~~P1-12. Range In(r) containment~~ ✅
-Check if range is fully within another.
-
----
-
-## ✅ Completed: Earlier Work
-
-### Critical Bugs (all resolved)
-- Grid coordinate system — relative vs absolute ✅
-- JPS 4-way (no-diags) mode ✅
-- FOV algorithm divergence ✅
-- Cellular automata countWalls off-by-one ✅
-
-### Major Features (all resolved)
-- Vault system ✅
-- KeepCC ✅
-- Multi-source FOV lighting ✅
-- FOV ray traceback ✅
-- Replay widget ✅
-- Menu widget ✅
-- Pager widget ✅
-- TextInput widget ✅
-- Sub effects ✅
-- Frame recording ✅
-- Enhanced roguelike demo ✅
-
----
-
-## 🟡 Remaining P1 (3 items)
-
-### P1-A. StyledText `lines()` markup state preservation
-- **File:** `crates/gruid-ui/src/styled_text.rs`
-- Go preserves inter-line markup state with `@r` prefix on continuation lines.
-- **Status:** Implemented but needs thorough verification against Go edge cases.
-
-### P1-B. Replay missing features
+### R1. Replay widget polish
 - **File:** `crates/gruid-ui/src/replay.rs`
-- Help overlay (embedded Pager)
-- Mouse interaction (toggle pause, step)
-- Grid auto-resize on larger frames
+- Help overlay (embedded Pager showing keybindings)
+- Mouse interaction (click to toggle pause, etc.)
+- Grid auto-resize when frames are larger than current grid
+- `ReplayKeys.help` field
+- **Effort:** ~2 hours
 
-### ~~P1-C. Serde derives on remaining types~~ ✅
-`EventQueue<E>`, `rl::Grid`, `FOV`, `PathRange` — all behind `serde` feature flag.
-Custom impls for Grid (Rc<RefCell> → flat cells), FOV/PathRange (serialize range only, reconstruct caches).
+### R2. Pager line number in footer
+- **File:** `crates/gruid-ui/src/pager.rs`
+- Go shows "Line X/Y" in box footer when scrolling
+- **Effort:** ~30 min
 
----
+### R3. TextInput cursor auto-reverse style
+- **File:** `crates/gruid-ui/src/text_input.rs`
+- Go auto-swaps fg/bg for cursor when no explicit cursor style set
+- **Effort:** ~15 min
 
-## 🟢 Remaining P2 (minor polish)
+### R4. ModMask Display combos
+- **File:** `crates/gruid-core/src/messages.rs`
+- Currently shows "SHIFT" or "CTRL" individually
+- Go shows "Ctrl+Shift" for combined modifiers
+- **Effort:** ~15 min
 
-### P2-1. Key/ModMask helpers
-- `Key::in_keys(&[Key])` — membership test
-- Better `Display` for `ModMask` — "Ctrl+Shift" combos
+### R5. StyledText convenience constructors
+- **File:** `crates/gruid-ui/src/styled_text.rs`
+- `with_textf(String)` — pre-formatted text
+- `with(text, style)` — combined text+style
+- **Effort:** ~15 min
 
-### P2-2. StyledText convenience
-- `with_textf(format_string)` — formatted text constructor
-- `with(text, style)` — combined text+style setter
-
-### P2-3. PathRange capacity optimization
-- Preserve caches when new size ≤ old capacity (Go behavior)
-
-### P2-4. JPS path buffer reuse
-- Accept pre-allocated `&mut Vec<Point>` for zero-allocation reuse
-
-### P2-5. MapGen::with_grid()
-- Create derived MapGen sharing a grid
-
-### P2-6. TextInput cursor auto-reverse
-- Auto-swap fg/bg for cursor style when no explicit style set
-
-### P2-7. App::CatchPanics
-- Configurable panic recovery flag
-
-### P2-8. `\r` handling in StyledText
-- Strip carriage returns (partially done, verify completeness)
+### R6. PathRange/JPS performance
+- **Files:** `crates/gruid-paths/src/pathrange.rs`, `jps.rs`
+- PathRange::set_range should preserve caches when new size ≤ old capacity
+- JPS should accept `&mut Vec<Point>` for buffer reuse
+- **Effort:** ~1 hour
 
 ---
 
-## 🟦 Enhancement: Beyond Go Original
+## 🟦 Enhancements (beyond Go original)
 
-### ~~E1. WASM driver~~ ✅
-`gruid-web` crate created. Canvas 2D text rendering, full keyboard/mouse event handling.
-Implements `EventLoopDriver`. Excluded from workspace (requires wasm32 target).
+### E1. Port shamogu ← NEXT STEP
+- Port https://codeberg.org/anaseto/shamogu to Rust using gruid-rs
+- This proves the framework and surfaces any remaining gaps
+- Start with: model struct, update loop, draw, map generation
+- Then: monsters, combat, items, animations, menus
 
-### E2. GPU-accelerated driver
-- New `gruid-wgpu` crate using `wgpu`
+### E2. Port Go test suite
+- Go has 3,124 lines of tests we haven't ported
+- Biggest gaps: Grid slice edge cases (820 lines), StyledText (327 lines)
+- Would give high confidence in correctness
 
-### E3. Async effect processing
-- Optional `tokio`/`smol` runtime behind feature flag
+### E3. GPU-accelerated driver
+- `gruid-wgpu` crate using wgpu for GPU tile rendering
 
-### E4. Comprehensive test suite
-- Port remaining Go test cases (~2,000 lines)
-- Property-based tests, fuzzing
-
-### E5. Documentation & examples
-- Crate-level rustdoc with examples
-- Standalone examples: menu demo, pathfinding visualizer
-
-### E6. Typed errors
+### E4. Typed errors
 - Replace `Box<dyn Error>` with per-crate error types
 
----
-
-## Recommended Next Steps
-
-1. **Port shamogu** — Prove the framework by porting a real game
-2. **P1-A/B** — Verify StyledText edge cases + Replay polish (as needed during port)
-3. **E4** — Port Go test suite for full confidence
-4. **E5** — Documentation and examples
-5. **P2** — Minor polish as needed during game porting
+### E5. Documentation
+- Crate-level rustdoc with examples for each module
+- Standalone examples: menu demo, pathfinding visualizer

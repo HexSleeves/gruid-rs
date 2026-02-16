@@ -1,7 +1,7 @@
-# Agent Context Dump — gruid-rs
+# Agent Context — gruid-rs
 
-This file contains full context for continuing development of gruid-rs.
-Read this before making changes.
+Read this before making changes. See also `AGENTS.md` for coding standards
+and the **mandatory pre-commit checklist** (fmt, clippy, test, update docs, commit, push).
 
 ---
 
@@ -11,9 +11,20 @@ A Rust reimplementation of [gruid](https://codeberg.org/anaseto/gruid) — a Go
 cross-platform grid-based UI and game framework using the Elm architecture
 (Model-View-Update). Designed for roguelike games but general-purpose.
 
-**Go original:** cloned as needed from `https://codeberg.org/anaseto/gruid`
-**Rust port:** `/home/exedev/gruid-rs/` (~13,400 LOC across 8 crates + examples)
-**Repo:** https://github.com/HexSleeves/gruid-rs
+**Go original:** `https://codeberg.org/anaseto/gruid` (clone as needed for reference)
+**Shamogu (reference game):** `https://codeberg.org/anaseto/shamogu` (Go roguelike using gruid)
+**Rust port:** `/home/exedev/gruid-rs/` — 13,500 LOC across 8 crates + examples
+**Repo:** `https://github.com/HexSleeves/gruid-rs`
+
+---
+
+## Current State (as of last update)
+
+- **204 tests pass** (`cargo test --workspace --all-features`, zero failures)
+- **Clippy clean** (`cargo clippy --workspace -- -D warnings`, zero warnings)
+- **~94% Go API parity** — all P0 blockers and P1 items closed except Replay polish
+- **3 backends:** terminal (crossterm), native window (winit), browser (gruid-web/WASM)
+- **Serde:** all key types serializable behind `serde` feature flag
 
 ---
 
@@ -22,87 +33,105 @@ cross-platform grid-based UI and game framework using the Elm architecture
 ```
 gruid-rs/
 ├── Cargo.toml              # Workspace root
-├── README.md
-├── TODO.md                 # Full task list with priorities (READ THIS)
-├── CONTEXT.md              # This file
+├── README.md               # Project overview + quick start
+├── AGENTS.md               # Agent coding standards + pre-commit checklist
+├── CONTEXT.md              # This file — architecture context
+├── TODO.md                 # Prioritized task list
+├── GAP_ANALYSIS.md         # Original Go→Rust gap audit (31 items)
 ├── crates/
-│   ├── gruid-core/         # Core types: Grid, Cell, Point, Range, Style, Msg, App
+│   ├── gruid-core/         # Core types (in workspace)
 │   │   └── src/
-│   │       ├── lib.rs      # Re-exports everything
-│   │       ├── geom.rs     # Point (i32 x,y), Range (half-open rect), iterators
+│   │       ├── lib.rs      # Re-exports: Grid, Cell, Point, Range, Style, Msg, etc.
+│   │       ├── geom.rs     # Point (i32 x,y), Range (half-open rect) — RELATIVE coords
+│   │       │               # Range: add/sub, line/lines/column/columns (relative),
+│   │       │               # rel_msg, in_range, shift (empty-safe), union, intersect
+│   │       │               # PartialEq normalizes empties. Add<Point>/Sub<Point> impls.
 │   │       ├── style.rs    # Color (u32 RGB), AttrMask (bitflags), Style (fg/bg/attrs)
 │   │       ├── cell.rs     # Cell { ch: char, style: Style }
-│   │       ├── grid.rs     # Grid with Rc<RefCell<GridBuffer>> shared storage, RELATIVE coords
-│   │       ├── messages.rs # Key, ModMask, MouseAction, Msg enum (incl. Msg::Tick)
+│   │       ├── grid.rs     # Grid with Rc<RefCell<GridBuffer>> shared storage
+│   │       │               # Slice semantics, relative coords, resize, Display impl
+│   │       ├── messages.rs # Key enum, ModMask, MouseAction, Msg enum
+│   │       │               # Msg::Init/KeyDown/Mouse/Screen/Quit/Tick/Custom
 │   │       ├── app.rs      # Model/Driver/EventLoopDriver traits, App, AppRunner, Effect
+│   │       │               # Effect::Cmd/Sub/Batch/End, Context (cancellation token)
 │   │       └── recording.rs # FrameEncoder/FrameDecoder — binary frame serialization
-│   ├── gruid-paths/        # Pathfinding algorithms
+│   │
+│   ├── gruid-paths/        # Pathfinding algorithms (in workspace)
 │   │   └── src/
 │   │       ├── lib.rs
 │   │       ├── traits.rs   # Pather, WeightedPather, AstarPather trait hierarchy
-│   │       ├── neighbors.rs # Neighbors helper (cardinal + all)
+│   │       ├── neighbors.rs # Neighbors: cardinal (4), all (8), diagonal (4)
 │   │       ├── distance.rs # manhattan(), chebyshev()
-│   │       ├── pathrange.rs # PathRange (cache owner), PathNode, Node internals
-│   │       ├── astar.rs    # PathRange::astar_path() — works
-│   │       ├── dijkstra.rs # PathRange::dijkstra_map/at() — works
-│   │       ├── bfs.rs      # PathRange::bfs_map/at() — works
-│   │       ├── jps.rs      # PathRange::jps_path() — works (8-way AND 4-way)
-│   │       └── cc.rs       # PathRange::cc_map_all/cc_map/cc_at() — works
-│   ├── gruid-rl/           # Roguelike utilities
+│   │       ├── pathrange.rs # PathRange (cache owner) + serde support
+│   │       ├── astar.rs    # PathRange::astar_path()
+│   │       ├── dijkstra.rs # PathRange::dijkstra_map/at()
+│   │       ├── bfs.rs      # PathRange::bfs_map/at()
+│   │       ├── jps.rs      # PathRange::jps_path() — 8-way AND 4-way
+│   │       └── cc.rs       # PathRange::cc_map_all/cc_map/cc_at()
+│   │
+│   ├── gruid-rl/           # Roguelike utilities (in workspace)
 │   │   └── src/
 │   │       ├── lib.rs
-│   │       ├── grid.rs     # rl::Grid (Cell=i32) — RELATIVE coords, matches Go
-│   │       ├── fov.rs      # FOV — VisionMap + SSC, matches Go's algorithms
-│   │       ├── mapgen.rs   # MapGen — cellular automata + random walk + KeepCC
-│   │       ├── vault.rs    # Vault — ASCII art room prefabs with transforms
-│   │       └── events.rs   # EventQueue<E> — works
-│   ├── gruid-ui/           # UI widgets
+│   │       ├── grid.rs     # rl::Grid (Cell=i32) — relative coords, for_each_mut,
+│   │       │               # map_cells_mut, at_unchecked, resize, serde support
+│   │       ├── fov.rs      # FOV: VisionMap + SSC, LightMap, From/Ray, serde
+│   │       ├── mapgen.rs   # MapGen: cellular automata + random walk + KeepCC
+│   │       ├── vault.rs    # Vault: ASCII art room prefabs with transforms
+│   │       └── events.rs   # EventQueue<E>: priority queue with serde
+│   │
+│   ├── gruid-ui/           # UI widgets (in workspace)
 │   │   └── src/
 │   │       ├── lib.rs
-│   │       ├── styled_text.rs # StyledText with markup — partial (@r incomplete)
-│   │       ├── box_.rs     # BoxDecor (Unicode box drawing) — works
-│   │       ├── label.rs    # Label — partial (no auto-sizing)
-│   │       ├── menu.rs     # Menu — keyboard, mouse, pagination, disabled skip
-│   │       ├── pager.rs    # Pager — vertical/horizontal scroll, half-page, mouse wheel
-│   │       ├── replay.rs   # Replay — frame playback with speed/pause/seek/undo
-│   │       └── text_input.rs # TextInput — prompt, cursor, mouse click-to-position
-│   ├── gruid-tiles/        # Font-to-tile rendering (EXCLUDED from workspace build)
+│   │       ├── styled_text.rs # StyledText: @-prefix markup (@X switch, @N reset,
+│   │       │                  # @@ escape), format, lines (cross-line state)
+│   │       ├── box_.rs     # BoxDecor: Unicode box drawing, markup-aware title/footer
+│   │       ├── label.rs    # Label: background fill, AdjustWidth
+│   │       ├── menu.rs     # Menu: 2D grid layout, active_invokable, mouse,
+│   │       │               # pagination with page numbers, disabled skip
+│   │       ├── pager.rs    # Pager: v/h scroll (8-col step), half-page, top/bottom,
+│   │       │               # mouse click page up/down, lines(), set_cursor(Point),
+│   │       │               # PagerKeys::start, view()->Range
+│   │       ├── replay.rs   # Replay: auto-play, speed, pause, seek, undo
+│   │       │               # MISSING: help overlay, mouse interaction, grid auto-resize
+│   │       └── text_input.rs # TextInput: prompt, cursor, mouse click-to-position
+│   │
+│   ├── gruid-crossterm/    # Terminal driver (in workspace)
+│   │   └── src/lib.rs      # CrosstermDriver implements Driver trait (poll-based)
+│   │
+│   ├── gruid-winit/        # Native window driver (in workspace)
 │   │   └── src/
-│   │       ├── lib.rs
-│   │       └── drawer.rs   # Drawer using rusttype + image crate
-│   ├── gruid-crossterm/    # Terminal driver — works
-│   │   └── src/lib.rs      # CrosstermDriver implements Driver trait
-│   └── gruid-winit/        # Native window driver — works
-│       └── src/
-│           ├── lib.rs      # WinitDriver implements EventLoopDriver trait
-│           ├── input.rs    # winit event → gruid Msg translation
-│           ├── renderer.rs # GridRenderer: fontdue rasterizer + pixel buffer
-│           └── builtin_font.ttf # DejaVu Sans Mono
+│   │       ├── lib.rs      # WinitDriver implements EventLoopDriver
+│   │       ├── input.rs    # winit event → gruid Msg translation
+│   │       └── renderer.rs # GridRenderer: fontdue rasterizer + pixel buffer
+│   │
+│   ├── gruid-web/          # WASM browser driver (EXCLUDED — wasm32 only)
+│   │   └── src/lib.rs      # WebDriver implements EventLoopDriver
+│   │                       # Canvas 2D text rendering, keyboard/mouse events
+│   │
+│   ├── gruid-tiles/        # Font-to-tile rendering (EXCLUDED — heavy deps)
+│   │   └── src/            # Drawer using rusttype + image crate
+│   │
+│   └── gruid-sdl/          # SDL driver (EMPTY — placeholder)
+│
 └── examples/
     ├── Cargo.toml
-    ├── src/lib.rs          # Shared Game model — full-featured roguelike demo
+    ├── src/lib.rs          # Shared Game model — roguelike demo
     ├── roguelike.rs        # Terminal entry point (crossterm)
-    └── roguelike_winit.rs  # Graphical entry point (winit+softbuffer)
+    └── roguelike_winit.rs  # Graphical entry point (winit)
 ```
 
 ---
 
 ## Key Architecture Decisions
 
-### Relative Coordinate System
+### Coordinate System — RELATIVE
 
-Both `gruid_core::Grid` and `gruid_rl::Grid` use **relative** coordinates
-matching Go gruid's semantics. After `grid.slice(Range::new(5,5,10,10))`,
-`grid.set(Point::new(0,0), c)` writes to position (5,5) in the underlying
-buffer. `slice()` takes a relative range, clamped to the grid's size.
-
-All public methods (`at`, `set`, `contains`, `iter`, `map_cells`, `fill`)
-work with relative coordinates. Internal storage uses absolute coords in the
-shared buffer.
+Both `gruid_core::Grid` and `gruid_rl::Grid` use **relative** coordinates.
+After `grid.slice(Range::new(5,5,10,10))`, `grid.set(Point::new(0,0), c)` writes
+to position (5,5) in the underlying buffer. All public methods work with relative
+coordinates. Internal storage uses absolute coords in the shared buffer.
 
 ### Two Driver Models
-
-The core supports both poll-based and event-loop-based backends:
 
 ```rust
 // Poll-based (crossterm): App calls poll_msgs() in a loop
@@ -113,167 +142,127 @@ pub trait Driver {
     fn close(&mut self);
 }
 
-// Event-loop-based (winit): Driver owns the main thread
+// Event-loop-based (winit, web): Driver owns the main thread
 pub trait EventLoopDriver {
     fn run(self, runner: AppRunner) -> Result<()>;
 }
 ```
 
-`AppRunner` is a state machine the event-loop driver calls into:
-- `runner.init()` — sends Msg::Init
-- `runner.handle_msg(msg)` — feeds input to Model::update()
-- `runner.process_pending_msgs()` — drains background Cmd/Sub messages
-- `runner.draw_frame() -> Option<Frame>` — calls Model::draw(), diffs, returns changes
-- `runner.should_quit()` — checks if Effect::End was returned
-- `runner.resize(w, h)` — reallocates grids on window resize
+`AppRunner` is the state machine for event-loop drivers:
+- `runner.init()` → sends Msg::Init
+- `runner.handle_msg(msg)` → feeds input to Model::update()
+- `runner.process_pending_msgs()` → drains background Cmd/Sub messages
+- `runner.draw_frame() -> Option<Frame>` → Model::draw(), diff, returns changes
+- `runner.should_quit()` → checks Effect::End
+- `runner.resize(w, h)` → reallocates grids
 
 ### Effect System
 
-- `Effect::Cmd(f)` — spawns a thread, runs `f()`, sends result msg back
-- `Effect::Sub(f)` — spawns a thread, runs `f(ctx, tx)` for long-running subscriptions
-- `Effect::Batch(vec)` — processes multiple effects
+- `Effect::Cmd(f)` — spawns thread, runs `f()`, sends result msg (NOT in WASM)
+- `Effect::Sub(f)` — long-running subscription thread (NOT in WASM)
+- `Effect::Batch(vec)` — multiple effects
 - `Effect::End` — signals quit
-
-Both `App` (poll-based) and `AppRunner` (event-loop) spawn real threads
-for Cmd/Sub effects and feed messages back via channels.
 
 ### Grid Shared Storage
 
-Both `gruid_core::Grid` and `gruid_rl::Grid` use `Rc<RefCell<GridBuffer>>` for
-slice semantics (like Go's slice-of-underlying-array). `Clone` shares the buffer.
-`slice()` returns a new Grid with narrower bounds but same buffer pointer.
+Both Grid types use `Rc<RefCell<GridBuffer>>` for slice semantics (like Go's
+slice-of-underlying-array). `Clone` shares the buffer. `slice()` returns a
+new Grid with narrower bounds but same buffer pointer.
+
+### StyledText `@`-Prefix Markup
+
+- `@X` (X is a markup key) → switch to that style
+- `@N` → reset to base style
+- `@@` → literal `@` character
+- `@` + unknown char → consumed, no output
+- `\r` → stripped
+- `lines()` preserves markup state across line breaks
 
 ### FOV Algorithms
 
-Two FOV algorithms, both matching Go gruid:
-
-1. **VisionMap** (ray-based): Octant-parent ray propagation. Non-binary visibility
-   with cost accumulation via `Lighter` trait (`cost(src, from, to)` + `max_cost(src)`).
-   Supports `From`/`Ray` traceback and multi-source `LightMap`.
-
+1. **VisionMap** (ray-based): Octant-parent ray propagation with cost accumulation
+   via `Lighter` trait. Supports `From`/`Ray` traceback and multi-source `LightMap`.
 2. **SSCVisionMap** (symmetric shadow casting): Albert Ford's algorithm.
    Binary visibility with `diags` parameter. Multi-source `SSCLightMap`.
 
-### JPS Pathfinding
-
-Faithfully ported from Go gruid. Both 8-way (diagonal) and 4-way (cardinal-only)
-modes work. Uses `dirnorm` for direction normalization, `expandOrigin` for initial
-successors, `straightMax` for edge optimization, and `jumpPath` with cardinal
-intermediates for no-diags mode.
-
-### Frame Diffing & Recording
-
-`compute_frame(prev, curr)` compares two same-sized grids cell-by-cell and
-returns only changed cells as a `Frame { cells, width, height, time_ms }`.
-Positions in the frame are relative (0-based). Drivers only render the diff.
-
-`FrameEncoder`/`FrameDecoder` serialize frames to a compact binary wire format
-(length-prefixed, no external deps). The `time_ms` field supports replay timing.
-
 ### PathRange Cache Pattern
 
-`PathRange` owns all cached data structures for pathfinding. All algorithms are
-methods on `&mut PathRange`. Uses generation-based cache invalidation (increment
-a counter instead of clearing O(n) arrays).
+`PathRange` owns all cached data structures. All algorithms are methods on
+`&mut PathRange`. Uses generation-based cache invalidation (increment counter
+instead of clearing O(n) arrays).
 
-### Winit DPI Handling
+### Frame Diffing
 
-The winit driver queries `monitor.scale_factor()` at startup, multiplies the
-logical font size by it, and works entirely in physical pixels. The window is
-created with `PhysicalSize`. Handles `ScaleFactorChanged` events by rebuilding
-the renderer.
+`compute_frame(prev, curr)` compares two grids cell-by-cell, returns only
+changed cells as `Frame { cells, width, height, time_ms }`. Drivers only
+render the diff.
 
 ---
 
-## Go Reference Files
+## Go Reference Porting Status
 
-The Go original is cloned at `/home/exedev/gruid/`. Key files:
-
-| Go File | Status |
-|---------|--------|
-| `grid.go` | ✅ Ported (except Resize) |
+| Go File | Rust Status |
+|---------|-------------|
+| `grid.go` | ✅ Fully ported (Resize, Display, relative coords) |
 | `ui.go` | ✅ Ported (App, Effects, Driver traits) |
 | `messages.go` | ✅ Ported |
-| `recording.go` | ✅ Ported (binary format, not gob+gzip) |
-| `paths/jps.go` | ✅ Ported |
-| `paths/pathrange.go` | ✅ Ported |
-| `rl/fov.go` | ✅ Ported |
-| `rl/mapgen.go` | ✅ Ported (incl. Vault, KeepCC) |
-| `rl/grid.go` | ✅ Ported |
-| `ui/menu.go` | ✅ Ported (except multi-column layout) |
-| `ui/pager.go` | ✅ Ported |
+| `recording.go` | ✅ Ported (binary format) |
+| `paths/pathrange.go` | ✅ Ported + serde |
+| `paths/jps.go` | ✅ Ported (8-way + 4-way) |
+| `paths/neighbors.go` | ✅ Ported (cardinal + all + diagonal) |
+| `rl/fov.go` | ✅ Ported (from() bug fixed) + serde |
+| `rl/mapgen.go` | ✅ Ported (incl. Vault, KeepCC, with_grid) |
+| `rl/grid.go` | ✅ Ported (for_each_mut, resize, at_unchecked) + serde |
+| `rl/events.go` | ✅ Ported + serde |
+| `ui/styledtext.go` | ✅ Ported (@-prefix markup) |
+| `ui/menu.go` | ✅ Ported (2D layout, active_invokable, mouse) |
+| `ui/pager.go` | ✅ Ported (all features) |
 | `ui/textinput.go` | ✅ Ported |
-| `ui/replay.go` | ✅ Ported |
-| `ui/styledtext.go` | ⚠️ Partial (@r markup incomplete) |
+| `ui/label.go` | ✅ Ported (bg fill, AdjustWidth) |
+| `ui/box.go` | ✅ Ported (markup-aware title/footer) |
+| `ui/replay.go` | ⚠️ Partial — missing help overlay, mouse, grid auto-resize |
 
 ---
 
-## Known Working State
+## What's Still Missing (6 items)
 
-- **195 tests pass** (`cargo test --workspace`, zero failures)
-- **Workspace compiles clean** (`cargo clippy --workspace -- -D warnings`, zero warnings)
-- **Code formatted** (`cargo fmt --all`)
-- **Grid relative coordinates** — both gruid-core and gruid-rl match Go semantics
-- **Grid Resize** — both gruid-core and gruid-rl, content-preserving
-- **Grid Display** — `impl Display for Grid` for debugging
-- **Range** — relative Line/Lines/Column/Columns, Add/Sub translation, In containment,
-  RelMsg for mouse position adjustment, empty normalization in PartialEq
-- **JPS 4-way and 8-way** — both work, faithfully ported from Go
-- **FOV VisionMap + SSC** — both work, match Go algorithms, with From/Ray/LightMap
-- **FOV from()** — bug fixed (no longer double-counts lt.cost())
-- **Vault system** — parse, draw, reflect, rotate — matches Go
-- **KeepCC** — uses PathRange CC labels to keep largest connected component
-- **Neighbors** — all (8-way), cardinal (4-way), diagonal (4-way)
-- **Sub effects** — Cmd/Sub spawn background threads, messages fed back via channel
-- **Frame recording** — real binary encoder/decoder with time_ms for replay
-- **Replay widget** — auto-play, speed control, pause, stepping, seeking, undo
-- **Menu widget** — 2D grid layout, keyboard, mouse (click/wheel/hover/outside-quit),
-  pagination with page numbers, disabled-entry skip, active_invokable
-- **Pager widget** — vertical/horizontal scroll (8-col step), half-page, top/bottom,
-  mouse wheel + click page up/down, lines(), set_cursor(Point), view()->Range, start key
-- **TextInput widget** — prompt, cursor, mouse click-to-position
-- **StyledText** — full `@`-prefix markup protocol: `@X` switch, `@N` reset, `@@` escape,
-  `\r` stripping, cross-line state preservation, format with zero-width markup
-- **Label** — background fill, AdjustWidth functional
-- **BoxDecor** — markup-aware title/footer rendering
-- **rl::Grid** — for_each_mut, map_cells_mut, at_unchecked, resize, copy_from returns Point
-- **Roguelike demo** — cave gen, FOV, monsters with A* AI, combat, Dijkstra heatmap,
-  A* path overlay, look mode, mouse click-to-move, status bar, message log, help pager
-- **Winit DPI scaling** works on Retina displays
+### Functional Gaps
+1. **Replay widget** — help overlay (embedded Pager), mouse interaction, grid auto-resize
+2. **Pager line number in footer** — Go shows "Line X/Y" in box footer
+3. **TextInput cursor auto-reverse** — Go auto-swaps fg/bg for cursor
+4. **ModMask Display combos** — should show "Ctrl+Shift" not single values
+5. **StyledText with_textf()/with()** — convenience constructors
 
-## Known Incomplete / Missing
+### Performance Gaps
+6. **PathRange SetRange capacity** — Go preserves caches when new size ≤ old capacity
+7. **JPS buffer reuse** — Go accepts pre-allocated `path []Point`
 
-- **Serde derives** — only on core types, not on FOV/PathRange/EventQueue/rl::Grid
-- **Replay** — missing help overlay, mouse interaction, grid auto-resize
-- **StyledText lines()** — markup state preservation needs edge case verification
-- **P2 minor methods** — see TODO.md (Key helpers, PathRange capacity opt, etc.)
+### Testing Gap
+Go has 3,124 lines of tests across 14 files. Rust has 204 tests.
+Biggest untested areas: Grid slice edge cases, StyledText format edge cases.
 
 ---
 
 ## Build & Test Commands
 
 ```bash
-# Check everything compiles
-cargo check --workspace
+# Full check cycle (the pre-commit checklist)
+cargo fmt --all
+cargo clippy --workspace -- -D warnings
+cargo test --workspace                    # 195 tests (without serde)
+cargo test --workspace --all-features     # 204 tests (with serde)
 
-# Run tests (skip winit — it pulls too many deps for test build)
-cargo test -p gruid-core -p gruid-paths -p gruid-rl -p gruid-ui -p gruid-crossterm
+# Run demos
+cargo run --bin roguelike                 # terminal
+cargo run --bin roguelike-winit           # native window
 
-# Run terminal demo
-cargo run --bin roguelike
+# WASM driver (excluded from workspace)
+cargo check -p gruid-web --target wasm32-unknown-unknown \
+  --manifest-path crates/gruid-web/Cargo.toml
 
-# Run graphical demo
-cargo run --bin roguelike-winit
-
-# gruid-tiles is excluded from workspace (huge image crate deps)
-# Build separately: cargo check -p gruid-tiles --manifest-path crates/gruid-tiles/Cargo.toml
-
-# gruid-web is excluded (requires wasm32 target)
-# Build: cargo check -p gruid-web --target wasm32-unknown-unknown --manifest-path crates/gruid-web/Cargo.toml
+# Tiles (excluded from workspace)
+cargo check -p gruid-tiles --manifest-path crates/gruid-tiles/Cargo.toml
 ```
-
-**Disk space warning:** This VM has limited disk. The full workspace test build
-with winit can exhaust it. Use targeted test commands.
 
 ---
 
@@ -282,29 +271,57 @@ with winit can exhaust it. Use targeted test commands.
 ```
 gruid-core (no deps)
     │
-    ├── gruid-paths (depends on gruid-core)
+    ├── gruid-paths (gruid-core)
     │       │
-    │       └── gruid-rl (depends on gruid-core, gruid-paths, rand)
+    │       └── gruid-rl (gruid-core, gruid-paths, rand)
     │
-    ├── gruid-ui (depends on gruid-core)
+    ├── gruid-ui (gruid-core)
     │
-    ├── gruid-crossterm (depends on gruid-core, crossterm)
+    ├── gruid-crossterm (gruid-core, crossterm)
     │
-    ├── gruid-winit (depends on gruid-core, winit, softbuffer, fontdue)
+    ├── gruid-winit (gruid-core, winit, softbuffer, fontdue)
     │
-    ├── gruid-tiles (depends on gruid-core, image, rusttype) [excluded from workspace]
+    ├── gruid-web (gruid-core, wasm-bindgen, web-sys) [excluded, wasm32 only]
     │
-    └── gruid-web (depends on gruid-core, wasm-bindgen, web-sys) [excluded, wasm32 only]
+    └── gruid-tiles (gruid-core, image, rusttype) [excluded]
 ```
+
+Optional feature: `serde` on gruid-core, gruid-paths, gruid-rl — enables
+Serialize/Deserialize on Point, Range, Cell, Style, PathNode, PathRange,
+EventQueue, rl::Grid, FOV.
 
 ---
 
 ## Style Notes
 
-- Rust 2024 edition (1.85+). `gen` is reserved — use `cur_gen` for generation counters.
-- Builder pattern: `with_*()` methods return `Self` by value (Copy types) or new owned value.
-- Interior mutability: Grid uses `Rc<RefCell<>>`. `set()` and `fill()` take `&self` not `&mut self`.
-- Optional serde: `#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]`
-- Error type: `Box<dyn std::error::Error>` throughout (no custom error types yet).
-- Naming: `Box` is reserved in Rust → file is `box_.rs`, type is `BoxDecor`.
-- Grid coordinates: always **relative** to the view's origin. `bounds()` returns absolute range in buffer; `range_()` returns relative range (0,0 to size).
+- **Rust 2024 edition** (1.85+). `gen` is reserved — use `cur_gen`.
+- **Builder pattern:** `with_*()` methods return `Self` by value.
+- **Interior mutability:** Grid uses `Rc<RefCell<>>`. `set()`/`fill()` take `&self`.
+- **Serde:** `#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]`
+- **Error type:** `Box<dyn std::error::Error>` throughout.
+- **Naming:** `Box` is reserved → file is `box_.rs`, type is `BoxDecor`.
+- **Coordinates:** always relative to the view's origin.
+
+---
+
+## Next Step: Port shamogu
+
+The framework is ready to port [shamogu](https://codeberg.org/anaseto/shamogu)
+— a Go roguelike game built on gruid. Key shamogu files:
+
+| Go File | What it does |
+|---------|-------------|
+| `model.go` | Model struct, init, key bindings |
+| `update.go` | `Update(msg)` — mode-based dispatch + Action system |
+| `draw.go` | `Draw()` — renders map, log, status bar |
+| `actions.go` | Action interface + all action handlers |
+| `game.go` | Core game state |
+| `map.go` / `mapgen.go` | Map generation |
+| `monsters.go` / `actor.go` | Entity system |
+| `fov.go` | FOV integration |
+| `paths.go` | Pathfinding integration |
+| `combat.go` | Combat system |
+| `animation.go` | Animation queue using Cmd timers |
+| `effects.go` | Status effects (berserk, poison, etc.) |
+| `items.go` | Item/consumable system |
+| `menu.go` / `pager.go` | UI widget usage |
