@@ -63,8 +63,8 @@ impl Default for PagerKeys {
 /// Visual style for a pager.
 #[derive(Debug, Clone, Default)]
 pub struct PagerStyle {
-    /// Style for the page number indicator.
-    pub page_num: Style,
+    /// Style for the line-number indicator shown in the box footer.
+    pub line_num: Style,
 }
 
 /// Actions returned by [`Pager::update`].
@@ -85,7 +85,7 @@ pub struct Pager {
     grid: Grid,
     keys: PagerKeys,
     box_: Option<BoxDecor>,
-    _style: PagerStyle,
+    line_num_style: Style,
     scroll_y: i32,
     scroll_x: i32,
     action: PagerAction,
@@ -102,7 +102,7 @@ impl Pager {
             grid: config.grid,
             keys: config.keys,
             box_: config.box_,
-            _style: config.style,
+            line_num_style: config.style.line_num,
             scroll_y: 0,
             scroll_x: 0,
             action: PagerAction::Pass,
@@ -185,9 +185,41 @@ impl Pager {
     }
 
     /// Draw the pager into the given grid.
+    ///
+    /// When a box is present and no explicit footer has been set, a
+    /// line-number indicator (e.g. `"0-4/9"` or `"0-4/9+8"` when
+    /// scrolled horizontally) is shown in the footer — matching Go
+    /// gruid's behaviour.
     pub fn draw(&self, grid: &Grid) {
+        let (h, bh) = self.height();
+        let nlines = h - bh;
+
         let inner_range = if let Some(ref box_decor) = self.box_ {
-            box_decor.draw(grid)
+            // Auto-generate footer with line numbers when no explicit footer
+            // is set and content doesn't all fit.
+            if box_decor.footer.content().is_empty() && nlines < self.lines.len() as i32 {
+                let lnum = if self.scroll_x > 0 {
+                    format!(
+                        "{}-{}/{}+{}",
+                        self.scroll_y,
+                        self.scroll_y + nlines - 1,
+                        self.lines.len() as i32 - 1,
+                        self.scroll_x,
+                    )
+                } else {
+                    format!(
+                        "{}-{}/{}",
+                        self.scroll_y,
+                        self.scroll_y + nlines - 1,
+                        self.lines.len() as i32 - 1,
+                    )
+                };
+                let mut box_clone = box_decor.clone();
+                box_clone.footer = StyledText::new(&lnum, self.line_num_style);
+                box_clone.draw(grid)
+            } else {
+                box_decor.draw(grid)
+            }
         } else {
             grid.range_()
         };
@@ -603,6 +635,87 @@ mod tests {
         assert_eq!(pager.view().size().y, 0);
         pager.update(Msg::key(Key::ArrowDown));
         assert_eq!(pager.action(), PagerAction::Pass);
+    }
+
+    #[test]
+    fn pager_line_num_in_footer() {
+        // When a boxed pager has more lines than visible, draw should render
+        // a line-number indicator in the footer.
+        let content_str: String = (0..20)
+            .map(|i| format!("Line {i}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let pager = Pager::new(PagerConfig {
+            content: StyledText::new(&content_str, Style::default()),
+            grid: Grid::new(20, 8), // 8 tall, box takes 2 → 6 visible lines
+            keys: PagerKeys::default(),
+            box_: Some(crate::BoxDecor::new()),
+            style: PagerStyle::default(),
+        });
+        let grid = Grid::new(20, 8);
+        pager.draw(&grid);
+        // The footer should show "0-5/19" — check that the bottom border row
+        // contains these digits.
+        let mut bottom_row = String::new();
+        for x in 0..20 {
+            bottom_row.push(grid.at(Point::new(x, 7)).ch);
+        }
+        assert!(bottom_row.contains("0-5/19"), "footer: {}", bottom_row);
+    }
+
+    #[test]
+    fn pager_line_num_with_x_scroll() {
+        let long_content =
+            "A very long line that exceeds grid width for testing horizontal scroll indicator";
+        let mut pager = Pager::new(PagerConfig {
+            content: StyledText::new(long_content, Style::default()),
+            grid: Grid::new(20, 4),
+            keys: PagerKeys::default(),
+            box_: Some(crate::BoxDecor::new()),
+            style: PagerStyle::default(),
+        });
+        // Need enough lines to trigger footer. Add more lines:
+        let multi = (0..10)
+            .map(|i| format!("Long line number {i} with lots of text for scrolling"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let formatted = StyledText::new(&multi, Style::default());
+        pager.set_lines(formatted.lines());
+        // Scroll right
+        pager.update(Msg::key(Key::ArrowRight));
+        let grid = Grid::new(20, 4);
+        pager.draw(&grid);
+        let mut bottom_row = String::new();
+        for x in 0..20 {
+            bottom_row.push(grid.at(Point::new(x, 3)).ch);
+        }
+        // Should contain "+8" for horizontal offset
+        assert!(bottom_row.contains("+8"), "footer: {}", bottom_row);
+    }
+
+    #[test]
+    fn pager_no_line_num_when_fits() {
+        // When content fits entirely, no line number footer should appear.
+        let content_str = "short";
+        let pager = Pager::new(PagerConfig {
+            content: StyledText::new(content_str, Style::default()),
+            grid: Grid::new(20, 5),
+            keys: PagerKeys::default(),
+            box_: Some(crate::BoxDecor::new()),
+            style: PagerStyle::default(),
+        });
+        let grid = Grid::new(20, 5);
+        pager.draw(&grid);
+        let mut bottom_row = String::new();
+        for x in 0..20 {
+            bottom_row.push(grid.at(Point::new(x, 2)).ch); // box height = 1 line + 2 borders = 3
+        }
+        // Should NOT contain digits (no line-number indicator)
+        assert!(
+            !bottom_row.chars().any(|c| c.is_ascii_digit()),
+            "footer should be empty: {}",
+            bottom_row
+        );
     }
 
     #[test]

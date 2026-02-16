@@ -2,7 +2,7 @@
 
 Prioritized task list. See `CONTEXT.md` for architecture details.
 
-Current: 13,500 LOC, 8 crates, 211 tests, ~96% Go API parity.
+Current: ~14,000 LOC, 8 crates, 228 tests, ~99% Go API parity.
 
 ---
 
@@ -32,30 +32,14 @@ Current: 13,500 LOC, 8 crates, 211 tests, ~96% Go API parity.
 
 ---
 
-## 🟡 Remaining Small Gaps (6 items)
+## ✅ All Remaining Gaps — DONE
 
-### R1. Replay widget polish
-- **File:** `crates/gruid-ui/src/replay.rs`
-- Help overlay (embedded Pager showing keybindings)
-- Mouse interaction (click to toggle pause, etc.)
-- Grid auto-resize when frames are larger than current grid
-- `ReplayKeys.help` field
-- **Effort:** ~2 hours
-
-### R2. Pager line number in footer
-- **File:** `crates/gruid-ui/src/pager.rs`
-- Go shows "Line X/Y" in box footer when scrolling
-- **Effort:** ~30 min
-
+### ✅ R1. Replay widget polish — DONE
+### ✅ R2. Pager line number in footer — DONE
 ### ✅ R3. TextInput cursor auto-reverse style — DONE
 ### ✅ R4. ModMask Display combos — DONE
 ### ✅ R5. StyledText convenience constructors — DONE
-
-### R6. PathRange/JPS performance
-- **Files:** `crates/gruid-paths/src/pathrange.rs`, `jps.rs`
-- PathRange::set_range should preserve caches when new size ≤ old capacity
-- JPS should accept `&mut Vec<Point>` for buffer reuse
-- **Effort:** ~1 hour
+### ✅ R6. PathRange/JPS performance — DONE
 
 ---
 

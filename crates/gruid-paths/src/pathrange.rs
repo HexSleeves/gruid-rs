@@ -111,29 +111,46 @@ impl PathRange {
     }
 
     /// Replace the underlying range, reallocating caches as needed.
+    ///
+    /// If the new size fits within existing capacity, caches are preserved
+    /// and only generation counters are bumped (matching Go gruid's
+    /// `SetRange` behaviour). Otherwise caches are reallocated.
     pub fn set_range(&mut self, rng: Range) {
-        let len = rng.len();
+        let new_len = rng.len();
+        let old_capacity = self.astar_nodes.len();
         self.rng = rng;
         self.width = rng.width().max(0) as usize;
 
+        if new_len <= old_capacity {
+            // Fits within existing capacity — just bump generations so
+            // stale entries are ignored, no reallocation needed.
+            self.astar_generation = self.astar_generation.wrapping_add(1);
+            self.dijkstra_generation = self.dijkstra_generation.wrapping_add(1);
+            // Clear result vectors (they hold variable-length query output).
+            self.dijkstra_results.clear();
+            self.bfs_results.clear();
+            return;
+        }
+
+        // New size exceeds capacity — reallocate everything.
         self.astar_nodes.clear();
-        self.astar_nodes.resize(len, Node::default());
+        self.astar_nodes.resize(new_len, Node::default());
         self.astar_generation = 0;
 
         self.dijkstra_nodes.clear();
-        self.dijkstra_nodes.resize(len, Node::default());
+        self.dijkstra_nodes.resize(new_len, Node::default());
         self.dijkstra_generation = 0;
         self.dijkstra_results.clear();
         self.dijkstra_map.clear();
-        self.dijkstra_map.resize(len, UNREACHABLE);
+        self.dijkstra_map.resize(new_len, UNREACHABLE);
 
         self.bfs_map.clear();
-        self.bfs_map.resize(len, UNREACHABLE);
+        self.bfs_map.resize(new_len, UNREACHABLE);
         self.bfs_queue.clear();
         self.bfs_results.clear();
 
         self.cc_labels.clear();
-        self.cc_labels.resize(len, -1);
+        self.cc_labels.resize(new_len, -1);
         self.cc_stack.clear();
     }
 
@@ -179,6 +196,55 @@ impl<'de> serde::Deserialize<'de> for PathRange {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let range = gruid_core::Range::deserialize(deserializer)?;
         Ok(PathRange::new(range))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use gruid_core::{Point, Range};
+
+    #[test]
+    fn set_range_smaller_preserves_capacity() {
+        let rng = Range::new(0, 0, 20, 20);
+        let mut pr = PathRange::new(rng);
+        let original_cap = pr.astar_nodes.len(); // 400
+
+        // Shrink to a smaller range — should NOT reallocate.
+        let small = Range::new(0, 0, 5, 5);
+        pr.set_range(small);
+        assert_eq!(pr.range(), small);
+        assert_eq!(pr.astar_nodes.len(), original_cap); // still 400
+        assert_eq!(pr.width, 5);
+        // Generations should have bumped (stale entries ignored).
+        assert!(pr.astar_generation > 0 || pr.dijkstra_generation > 0);
+    }
+
+    #[test]
+    fn set_range_larger_reallocates() {
+        let rng = Range::new(0, 0, 5, 5);
+        let mut pr = PathRange::new(rng);
+        let old_cap = pr.astar_nodes.len(); // 25
+
+        // Grow beyond capacity — must reallocate.
+        let big = Range::new(0, 0, 20, 20);
+        pr.set_range(big);
+        assert_eq!(pr.range(), big);
+        assert!(pr.astar_nodes.len() > old_cap);
+        assert_eq!(pr.astar_nodes.len(), 400);
+    }
+
+    #[test]
+    fn set_range_equal_preserves_capacity() {
+        let rng = Range::new(0, 0, 10, 10);
+        let mut pr = PathRange::new(rng);
+        let cap = pr.astar_nodes.len();
+
+        // Same size but different origin — should preserve.
+        let shifted = Range::new(5, 5, 15, 15);
+        pr.set_range(shifted);
+        assert_eq!(pr.astar_nodes.len(), cap);
+        assert_eq!(pr.range(), shifted);
     }
 }
 

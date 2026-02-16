@@ -71,18 +71,45 @@ impl PathRange {
         passable: impl Fn(Point) -> bool,
         diags: bool,
     ) -> Option<Vec<Point>> {
+        let mut path = Vec::new();
+        if self.jps_path_into(&mut path, from, to, passable, diags) {
+            Some(path)
+        } else {
+            None
+        }
+    }
+
+    /// Like [`jps_path`](Self::jps_path) but writes the result into the
+    /// provided buffer, reusing its allocation. The buffer is cleared
+    /// before use. Returns `true` if a path was found.
+    ///
+    /// This matches Go gruid's `JPSPath(path []Point, ...)` signature
+    /// which accepts a pre-allocated slice for buffer reuse.
+    pub fn jps_path_into(
+        &mut self,
+        path: &mut Vec<Point>,
+        from: Point,
+        to: Point,
+        passable: impl Fn(Point) -> bool,
+        diags: bool,
+    ) -> bool {
+        path.clear();
+
         if !self.rng.contains(from) || !self.rng.contains(to) {
-            return None;
+            return false;
         }
         if from == to {
-            return Some(vec![from]);
+            path.push(from);
+            return true;
         }
 
         self.astar_generation = self.astar_generation.wrapping_add(1);
         let cur_gen = self.astar_generation;
 
         // Mark start as closed.
-        let si = self.idx(from)?;
+        let Some(si) = self.idx(from) else {
+            return false;
+        };
         {
             let n = &mut self.astar_nodes[si];
             n.g = 0;
@@ -116,7 +143,9 @@ impl PathRange {
         }
 
         loop {
-            let cur = open.pop()?;
+            let Some(cur) = open.pop() else {
+                return false;
+            };
             let ci = cur.idx;
             let nd = &self.astar_nodes[ci];
             if nd.generation != cur_gen || !nd.open {
@@ -128,7 +157,8 @@ impl PathRange {
             self.astar_nodes[ci].open = false;
 
             if cp == to {
-                return Some(self.jps_reconstruct(from, ci, &passable, diags, cur_gen));
+                self.jps_reconstruct_into(path, from, ci, &passable, diags, cur_gen);
+                return true;
             }
 
             let parent_p = self.point(parent_idx);
@@ -669,15 +699,15 @@ impl PathRange {
         }
     }
 
-    fn jps_reconstruct(
+    fn jps_reconstruct_into(
         &self,
+        path: &mut Vec<Point>,
         from: Point,
         goal_idx: usize,
         passable: &impl Fn(Point) -> bool,
         diags: bool,
         _cur_gen: u32,
-    ) -> Vec<Point> {
-        let mut path = Vec::new();
+    ) {
         let mut ci = goal_idx;
         loop {
             let p = self.point(ci);
@@ -687,11 +717,10 @@ impl PathRange {
             }
             let pi = self.astar_nodes[ci].parent;
             let pp = self.point(pi);
-            self.jps_jump_path(&mut path, p, pp, passable, diags);
+            self.jps_jump_path(path, p, pp, passable, diags);
             ci = pi;
         }
         path.reverse();
-        path
     }
 }
 
@@ -770,6 +799,44 @@ mod tests {
         let path = pr.jps_path(from, to, open_grid, false).unwrap();
         let manhattan = (to.x - from.x).abs() + (to.y - from.y).abs();
         assert_eq!(path.len(), manhattan as usize + 1);
+    }
+
+    #[test]
+    fn jps_path_into_reuses_buffer() {
+        let mut pr = PathRange::new(Range::new(0, 0, 10, 10));
+        let mut buf = Vec::new();
+
+        // First call.
+        assert!(pr.jps_path_into(
+            &mut buf,
+            Point::new(0, 0),
+            Point::new(5, 5),
+            open_grid,
+            true
+        ));
+        assert_eq!(buf.len(), 6);
+        let cap_after_first = buf.capacity();
+
+        // Second call reuses the buffer allocation.
+        assert!(pr.jps_path_into(
+            &mut buf,
+            Point::new(0, 0),
+            Point::new(3, 0),
+            open_grid,
+            true
+        ));
+        assert_eq!(buf.len(), 4);
+        // Capacity should not have shrunk (reused).
+        assert!(buf.capacity() >= cap_after_first);
+    }
+
+    #[test]
+    fn jps_path_into_no_path() {
+        let mut pr = PathRange::new(Range::new(0, 0, 5, 5));
+        let mut buf = Vec::new();
+        let wall = |p: Point| p.x < 2;
+        assert!(!pr.jps_path_into(&mut buf, Point::new(0, 0), Point::new(4, 4), wall, true));
+        assert!(buf.is_empty());
     }
 
     #[test]

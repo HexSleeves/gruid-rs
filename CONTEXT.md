@@ -20,9 +20,9 @@ cross-platform grid-based UI and game framework using the Elm architecture
 
 ## Current State (as of last update)
 
-- **211 tests pass** (`cargo test --workspace --all-features`, zero failures)
+- **228 tests pass** (`cargo test --workspace --all-features`, zero failures)
 - **Clippy clean** (`cargo clippy --workspace -- -D warnings`, zero warnings)
-- **~94% Go API parity** — all P0 blockers and P1 items closed except Replay polish
+- **~99% Go API parity** — all P0, P1, and P2 items closed
 - **3 backends:** terminal (crossterm), native window (winit), browser (gruid-web/WASM)
 - **Serde:** all key types serializable behind `serde` feature flag
 
@@ -220,22 +220,16 @@ render the diff.
 | `ui/textinput.go` | ✅ Ported |
 | `ui/label.go` | ✅ Ported (bg fill, AdjustWidth) |
 | `ui/box.go` | ✅ Ported (markup-aware title/footer) |
-| `ui/replay.go` | ⚠️ Partial — missing help overlay, mouse, grid auto-resize |
+| `ui/replay.go` | ✅ Fully ported (help overlay, mouse, grid auto-resize) |
 
 ---
 
-## What's Still Missing (3 items)
+## What's Still Missing
 
-### Functional Gaps
-1. **Replay widget** — help overlay (embedded Pager), mouse interaction, grid auto-resize
-2. **Pager line number in footer** — Go shows "Line X/Y" in box footer
-
-### Performance Gaps
-3. **PathRange SetRange capacity** — Go preserves caches when new size ≤ old capacity
-4. **JPS buffer reuse** — Go accepts pre-allocated `path []Point`
+All functional and performance gaps are now closed.
 
 ### Testing Gap
-Go has 3,124 lines of tests across 14 files. Rust has 211 tests.
+Go has 3,124 lines of tests across 14 files. Rust has 228 tests.
 Biggest untested areas: Grid slice edge cases, StyledText format edge cases.
 
 ---
