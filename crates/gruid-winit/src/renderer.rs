@@ -38,6 +38,8 @@ pub(crate) struct GridRenderer {
     glyph_cache: HashMap<char, GlyphCache>,
     /// Optional tile manager for custom tile-based rendering.
     tile_manager: Option<Box<dyn TileManager>>,
+    /// Integer scale factor for tiles (1 = native, 2 = 2x, etc.).
+    tile_scale: u32,
 }
 
 impl GridRenderer {
@@ -47,15 +49,19 @@ impl GridRenderer {
         cols: usize,
         rows: usize,
         tile_manager: Option<Box<dyn TileManager>>,
+        tile_scale: u32,
     ) -> Self {
+        let tile_scale = tile_scale.max(1);
         let data = font_data.unwrap_or(FALLBACK_FONT);
         let font = Font::from_bytes(data, FontSettings::default()).expect("failed to parse font");
 
-        // When a tile manager is present, cell dimensions come from it.
+        // When a tile manager is present, cell dimensions come from it
+        // multiplied by the tile scale factor.
         // Otherwise compute from font metrics.
         let (cell_width, cell_height) = if let Some(ref tm) = tile_manager {
             let (tw, th) = tm.tile_size();
-            (tw.max(1), th.max(1))
+            let s = tile_scale as usize;
+            ((tw * s).max(1), (th * s).max(1))
         } else {
             let metrics = font
                 .horizontal_line_metrics(font_size)
@@ -86,6 +92,7 @@ impl GridRenderer {
             pixels,
             glyph_cache: HashMap::new(),
             tile_manager,
+            tile_scale,
         }
     }
 
@@ -177,29 +184,35 @@ impl GridRenderer {
                 let (fg_r, fg_g, fg_b) = fg_rgb(fg);
                 let (bg_r, bg_g, bg_b) = bg_rgb(bg);
                 let (tw, th) = tm.tile_size();
-                // Render monochrome alpha bitmap colorized with fg/bg
-                for ty in 0..th.min(ch_px) {
-                    for tx in 0..tw.min(cw) {
+                let s = self.tile_scale as usize;
+                // Render monochrome alpha bitmap scaled and colorized
+                for ty in 0..th {
+                    for tx in 0..tw {
                         let src_idx = ty * tw + tx;
                         if src_idx >= bitmap.len() {
                             continue;
                         }
                         let alpha = bitmap[src_idx];
-                        let px = x0 + tx;
-                        let py = y0 + ty;
-                        if px >= buf_w || py >= px_h {
-                            continue;
-                        }
-                        let idx = py * buf_w + px;
-                        if idx >= self.pixels.len() {
-                            continue;
-                        }
                         let a = alpha as u32;
                         let inv_a = 255 - a;
                         let r = (fg_r as u32 * a + bg_r as u32 * inv_a) / 255;
                         let g = (fg_g as u32 * a + bg_g as u32 * inv_a) / 255;
                         let b = (fg_b as u32 * a + bg_b as u32 * inv_a) / 255;
-                        self.pixels[idx] = 0xFF000000 | (r << 16) | (g << 8) | b;
+                        let pixel = 0xFF000000 | (r << 16) | (g << 8) | b;
+                        // Write s×s block for this source pixel
+                        for sy in 0..s {
+                            for sx in 0..s {
+                                let px = x0 + tx * s + sx;
+                                let py = y0 + ty * s + sy;
+                                if px >= buf_w || py >= px_h {
+                                    continue;
+                                }
+                                let idx = py * buf_w + px;
+                                if idx < self.pixels.len() {
+                                    self.pixels[idx] = pixel;
+                                }
+                            }
+                        }
                     }
                 }
                 return;

@@ -71,6 +71,11 @@ pub struct WinitConfig {
     /// When present, cell dimensions come from [`TileManager::tile_size()`]
     /// and tiles are rendered as colorized monochrome bitmaps.
     pub tile_manager: Option<Box<dyn TileManager>>,
+    /// Integer scale factor for tiles (default 0 = auto-detect from DPI).
+    /// A value of 2 renders each tile pixel as a 2×2 block, etc.
+    /// When 0, the scale is chosen automatically based on the monitor's
+    /// DPI scale factor.
+    pub tile_scale: u32,
 }
 
 impl Default for WinitConfig {
@@ -82,6 +87,7 @@ impl Default for WinitConfig {
             grid_width: 80,
             grid_height: 24,
             tile_manager: None,
+            tile_scale: 0,
         }
     }
 }
@@ -198,12 +204,20 @@ impl ApplicationHandler for WinitApp {
         // Scale the logical font size by the DPI factor.
         let physical_font_size = self.config.font_size * scale_factor as f32;
 
+        // Determine tile scale: 0 means auto from DPI.
+        let tile_scale = if self.config.tile_scale > 0 {
+            self.config.tile_scale
+        } else {
+            (scale_factor.round() as u32).max(1)
+        };
+
         let renderer = GridRenderer::new(
             self.config.font_data.as_deref(),
             physical_font_size,
             self.config.grid_width as usize,
             self.config.grid_height as usize,
             self.config.tile_manager.take(),
+            tile_scale,
         );
 
         // The renderer now works entirely in physical pixels.
@@ -264,12 +278,18 @@ impl ApplicationHandler for WinitApp {
                     // Rebuild renderer with the new physical font size.
                     let physical_font_size = self.config.font_size * scale_factor as f32;
                     let tile_manager = state.renderer.take_tile_manager();
+                    let tile_scale = if self.config.tile_scale > 0 {
+                        self.config.tile_scale
+                    } else {
+                        (scale_factor.round() as u32).max(1)
+                    };
                     state.renderer = GridRenderer::new(
                         self.config.font_data.as_deref(),
                         physical_font_size,
                         self.runner.width() as usize,
                         self.runner.height() as usize,
                         tile_manager,
+                        tile_scale,
                     );
                     // Force full redraw.
                     self.runner.handle_msg(Msg::Screen {
