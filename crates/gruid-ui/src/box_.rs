@@ -69,48 +69,16 @@ impl BoxDecor {
             set(grid, Point::new(x1 - 1, y), '\u{2502}', s);
         }
 
-        // Draw title on top border
-        let title_text = self.title.content();
-        if !title_text.is_empty() {
-            let title_len = title_text.chars().count() as i32;
-            let available = (w - 2).max(0);
-            if title_len > 0 && available > 0 {
-                let start_x = match self.align_title {
-                    Alignment::Left => 1,
-                    Alignment::Right => (x1 - 1 - title_len).max(1),
-                    Alignment::Center => ((w - title_len) / 2).max(1),
-                };
-                let mut x = start_x;
-                for ch in title_text.chars() {
-                    if x >= x1 - 1 {
-                        break;
-                    }
-                    set(grid, Point::new(x, 0), ch, self.title.style());
-                    x += 1;
-                }
-            }
+        // Draw title on top border using StyledText::iter for markup support.
+        if !self.title.content().is_empty() {
+            let top_line = grid.slice(Range::new(1, 0, x1 - 1, 1));
+            draw_text_line(&self.title, &top_line, self.align_title);
         }
 
-        // Draw footer on bottom border
-        let footer_text = self.footer.content();
-        if !footer_text.is_empty() {
-            let footer_len = footer_text.chars().count() as i32;
-            let available = (w - 2).max(0);
-            if footer_len > 0 && available > 0 {
-                let start_x = match self.align_footer {
-                    Alignment::Left => 1,
-                    Alignment::Right => (x1 - 1 - footer_len).max(1),
-                    Alignment::Center => ((w - footer_len) / 2).max(1),
-                };
-                let mut x = start_x;
-                for ch in footer_text.chars() {
-                    if x >= x1 - 1 {
-                        break;
-                    }
-                    set(grid, Point::new(x, y1 - 1), ch, self.footer.style());
-                    x += 1;
-                }
-            }
+        // Draw footer on bottom border using StyledText::iter for markup support.
+        if !self.footer.content().is_empty() {
+            let bot_line = grid.slice(Range::new(1, y1 - 1, x1 - 1, y1));
+            draw_text_line(&self.footer, &bot_line, self.align_footer);
         }
 
         // Inner range (relative)
@@ -128,4 +96,18 @@ fn set(grid: &Grid, p: Point, ch: char, style: Style) {
     if grid.contains(p) {
         grid.set(p, Cell::default().with_char(ch).with_style(style));
     }
+}
+
+/// Draw styled text into a single-row grid with the given alignment.
+/// Matches Go gruid's `StyledText.drawTextLine`.
+fn draw_text_line(stt: &StyledText, gd: &Grid, align: Alignment) {
+    let tw = stt.size().x;
+    let w = gd.width();
+    let offset = match align {
+        Alignment::Left => 0,
+        Alignment::Right => (w - tw).max(0),
+        Alignment::Center => ((w - tw) / 2).max(0),
+    };
+    let shifted = gd.slice(Range::new(offset, 0, w, gd.height()));
+    stt.draw(&shifted);
 }

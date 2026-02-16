@@ -1065,4 +1065,61 @@ mod tests {
     fn test_fov_shape_default() {
         assert_eq!(FovShape::default(), FovShape::Square);
     }
+
+    /// Test that `from()` returns the correct cost without double-counting
+    /// the lt.cost() of the last step. Mirrors Go's TestFOV assertion:
+    ///   `fov.From(lt, Point{5,0})` returns the parent at (4,0) with
+    ///   the accumulated stored cost minus 1.
+    #[test]
+    fn test_fov_from_no_extra_cost() {
+        // Lighter: cost(src, src, _) = 0, diagonal = 2, else = 1.
+        // Matches Go test lighter.
+        struct TestLighter {
+            max: i32,
+        }
+        impl Lighter for TestLighter {
+            fn cost(&self, src: Point, from: Point, to: Point) -> i32 {
+                if src == from {
+                    return 0;
+                }
+                let step = Point::new(to.x - from.x, to.y - from.y);
+                if step.x != 0 && step.y != 0 {
+                    2
+                } else {
+                    1
+                }
+            }
+            fn max_cost(&self, _src: Point) -> i32 {
+                self.max
+            }
+        }
+
+        let max_los = 10;
+        let range = Range::new(-max_los, -max_los, max_los + 2, max_los + 2);
+        let mut fov = FOV::new(range);
+        let lt = TestLighter { max: max_los };
+        fov.vision_map(&lt, Point::new(0, 0));
+
+        // From(lt, (5,0)) should return parent at (4,0).
+        let node = fov.from(&lt, Point::new(5, 0));
+        assert!(node.is_some(), "(5,0) should be reachable");
+        let node = node.unwrap();
+        assert_eq!(node.pos.x, 4, "parent should be at x=4");
+        assert_eq!(node.pos.y, 0, "parent should be at y=0");
+
+        // The cost at (5,0) via at() should equal the from() node cost.
+        // Go: at(5,0) returns 5 (cost 0 at source + 0 for first step
+        // + 1 each subsequent = 5 for axis). from() cost must equal at() cost.
+        let at_cost = fov.at(Point::new(5, 0)).unwrap();
+        assert_eq!(
+            node.cost, at_cost,
+            "from() cost ({}) should equal at() cost ({})",
+            node.cost, at_cost
+        );
+
+        // Verify the ray has correct length (6 nodes: source + 5 steps).
+        let ray = fov.ray(&lt, Point::new(5, 0));
+        assert!(ray.is_some());
+        assert_eq!(ray.unwrap().len(), 6, "ray from (0,0) to (5,0) should have 6 nodes");
+    }
 }

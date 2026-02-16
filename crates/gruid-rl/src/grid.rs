@@ -195,12 +195,115 @@ impl Grid {
         }
     }
 
+    /// Iterate all cells, calling `f` with the relative position and a
+    /// mutable reference to each cell.
+    ///
+    /// This is the mutable-iteration counterpart of `iter()`, matching
+    /// Go's `GridIterator.SetCell` pattern.
+    pub fn for_each_mut(&self, mut f: impl FnMut(Point, &mut Cell)) {
+        let mut buf = self.buf.borrow_mut();
+        let min = self.bounds.min;
+        for abs_p in self.bounds.iter() {
+            if let Some(idx) = buf.index(abs_p.x, abs_p.y) {
+                let rel = Point::new(abs_p.x - min.x, abs_p.y - min.y);
+                f(rel, &mut buf.cells[idx]);
+            }
+        }
+    }
+
+    /// Replace each cell with the return value of `f`, which receives the
+    /// relative position and the current cell value.
+    ///
+    /// This is equivalent to `map_cells` but named to make the mutation
+    /// explicit.
+    pub fn map_cells_mut(&self, mut f: impl FnMut(Point, Cell) -> Cell) {
+        let mut buf = self.buf.borrow_mut();
+        let min = self.bounds.min;
+        for abs_p in self.bounds.iter() {
+            if let Some(idx) = buf.index(abs_p.x, abs_p.y) {
+                let rel = Point::new(abs_p.x - min.x, abs_p.y - min.y);
+                buf.cells[idx] = f(rel, buf.cells[idx]);
+            }
+        }
+    }
+
+    /// Return the cell at relative position `p` without checking grid-slice
+    /// bounds.
+    ///
+    /// If `p` is outside this grid slice but within the underlying buffer,
+    /// the corresponding underlying cell is returned.  If also outside the
+    /// underlying buffer, returns `Cell(0)`.
+    ///
+    /// This matches Go's `Grid.AtU`.
+    ///
+    /// # Safety note
+    ///
+    /// This method is safe (no `unsafe` code) but can return surprising
+    /// values for out-of-slice positions.  Prefer [`at`](Self::at) unless
+    /// you need the performance in a tight loop.
+    pub fn at_unchecked(&self, p: Point) -> Cell {
+        let q = Point::new(p.x + self.bounds.min.x, p.y + self.bounds.min.y);
+        let buf = self.buf.borrow();
+        let i = q.y as isize * buf.width as isize + q.x as isize;
+        if i < 0 || i as usize >= buf.cells.len() {
+            Cell(0)
+        } else {
+            buf.cells[i as usize]
+        }
+    }
+
+    /// Resize the grid to new dimensions, preserving existing content.
+    ///
+    /// If the new size is larger, the underlying buffer grows and new cells
+    /// are initialised to `Cell(0)`.  If the new size is smaller (or zero),
+    /// the grid view shrinks.  Matches Go's `Grid.Resize`.
+    pub fn resize(&mut self, w: i32, h: i32) {
+        let cur = self.size();
+        if cur.x == w && cur.y == h {
+            return;
+        }
+        if w <= 0 || h <= 0 {
+            self.bounds.max = self.bounds.min;
+            return;
+        }
+        // Update the view's max bound.
+        self.bounds.max = Point::new(self.bounds.min.x + w, self.bounds.min.y + h);
+
+        let mut buf = self.buf.borrow_mut();
+        let old_w = buf.width;
+        let old_h = buf.height;
+        let need_w = self.bounds.max.x;
+        let need_h = self.bounds.max.y;
+
+        if need_w > old_w || need_h > old_h {
+            let nw = need_w.max(old_w);
+            let nh = need_h.max(old_h);
+            let mut new_cells = vec![Cell::default(); (nw * nh) as usize];
+            // Copy old data row by row.
+            for y in 0..old_h {
+                let src_start = (y * old_w) as usize;
+                let dst_start = (y * nw) as usize;
+                let row_len = old_w as usize;
+                new_cells[dst_start..dst_start + row_len]
+                    .copy_from_slice(&buf.cells[src_start..src_start + row_len]);
+            }
+            buf.cells = new_cells;
+            buf.width = nw;
+            buf.height = nh;
+        }
+    }
+
     /// Copy cells from `other` into `self`, aligning origins.
-    pub fn copy_from(&self, other: &Grid) {
+    ///
+    /// Returns the size of the copied region as a `Point`, which is the
+    /// component-wise minimum of both grids' dimensions (matching Go's
+    /// `Grid.Copy` return value).
+    pub fn copy_from(&self, other: &Grid) -> Point {
         let sw = other.bounds.width().min(self.bounds.width());
         let sh = other.bounds.height().min(self.bounds.height());
+        let copied = Point::new(sw, sh);
         if Rc::ptr_eq(&self.buf, &other.buf) && self.bounds == other.bounds {
-            return;
+            return self.bounds.size();
         }
         if Rc::ptr_eq(&self.buf, &other.buf) {
             // Same underlying buffer but different slices - need temp copy.
@@ -239,6 +342,7 @@ impl Grid {
                 }
             }
         }
+        copied
     }
 
     /// Count how many cells in the view equal the given cell.
@@ -408,5 +512,122 @@ mod tests {
         assert!(s.contains(Point::new(2, 2)));
         assert!(!s.contains(Point::new(3, 0)));
         assert!(!s.contains(Point::new(-1, 0)));
+    }
+
+    #[test]
+    fn test_for_each_mut() {
+        let g = Grid::new(3, 3);
+        g.fill(Cell(1));
+        g.for_each_mut(|p, cell| {
+            *cell = Cell(p.x + p.y);
+        });
+        assert_eq!(g.at(Point::new(0, 0)), Some(Cell(0)));
+        assert_eq!(g.at(Point::new(2, 1)), Some(Cell(3)));
+        assert_eq!(g.at(Point::new(1, 2)), Some(Cell(3)));
+        assert_eq!(g.at(Point::new(2, 2)), Some(Cell(4)));
+    }
+
+    #[test]
+    fn test_for_each_mut_on_slice() {
+        let g = Grid::new(10, 10);
+        g.fill(Cell(0));
+        let s = g.slice(Range::new(2, 2, 5, 5));
+        s.for_each_mut(|_p, cell| {
+            *cell = Cell(cell.0 + 10);
+        });
+        // Inside slice: was 0, now 10.
+        assert_eq!(g.at(Point::new(3, 3)), Some(Cell(10)));
+        // Outside slice: unchanged.
+        assert_eq!(g.at(Point::new(0, 0)), Some(Cell(0)));
+    }
+
+    #[test]
+    fn test_map_cells_mut() {
+        let g = Grid::new(4, 4);
+        g.fill(Cell(1));
+        g.map_cells_mut(|p, c| Cell(c.0 + p.x * 10));
+        assert_eq!(g.at(Point::new(0, 0)), Some(Cell(1)));
+        assert_eq!(g.at(Point::new(3, 0)), Some(Cell(31)));
+        assert_eq!(g.at(Point::new(2, 3)), Some(Cell(21)));
+    }
+
+    #[test]
+    fn test_at_unchecked() {
+        let g = Grid::new(5, 5);
+        g.fill(Cell(7));
+        // Normal in-bounds access.
+        assert_eq!(g.at_unchecked(Point::new(2, 2)), Cell(7));
+        // Completely out of underlying buffer returns Cell(0).
+        assert_eq!(g.at_unchecked(Point::new(100, 100)), Cell(0));
+        assert_eq!(g.at_unchecked(Point::new(-1, -1)), Cell(0));
+    }
+
+    #[test]
+    fn test_at_unchecked_skips_slice_bounds() {
+        let g = Grid::new(10, 10);
+        g.set(Point::new(0, 0), Cell(42));
+        let s = g.slice(Range::new(5, 5, 8, 8));
+        // Relative (-5, -5) is outside the slice, but at_unchecked
+        // skips slice bounds and hits absolute (0, 0).
+        assert_eq!(s.at_unchecked(Point::new(-5, -5)), Cell(42));
+        // Normal at() would return None for the same point.
+        assert_eq!(s.at(Point::new(-5, -5)), None);
+    }
+
+    #[test]
+    fn test_resize_same_size() {
+        let mut g = Grid::new(10, 10);
+        g.fill(Cell(5));
+        g.resize(10, 10);
+        assert_eq!(g.size(), Point::new(10, 10));
+        assert_eq!(g.at(Point::new(5, 5)), Some(Cell(5)));
+    }
+
+    #[test]
+    fn test_resize_grow() {
+        let mut g = Grid::new(5, 5);
+        g.fill(Cell(3));
+        g.resize(10, 10);
+        assert_eq!(g.size(), Point::new(10, 10));
+        // Old content preserved.
+        assert_eq!(g.at(Point::new(2, 2)), Some(Cell(3)));
+        // New area is zero.
+        assert_eq!(g.at(Point::new(7, 7)), Some(Cell(0)));
+    }
+
+    #[test]
+    fn test_resize_shrink_to_zero() {
+        let mut g = Grid::new(10, 10);
+        g.resize(-1, 5);
+        assert_eq!(g.size(), Point::new(0, 0));
+    }
+
+    #[test]
+    fn test_resize_preserves_content() {
+        // Matches Go TestResize behavior.
+        let mut g = Grid::new(20, 10);
+        g.fill(Cell(2));
+        g.resize(20, 30);
+        assert_eq!(g.at_unchecked(Point::new(10, 5)), Cell(2));
+        assert_eq!(g.at_unchecked(Point::new(10, 25)), Cell(0));
+    }
+
+    #[test]
+    fn test_copy_from_returns_size() {
+        let g1 = Grid::new(10, 10);
+        let g2 = Grid::new(5, 8);
+        let copied = g1.copy_from(&g2);
+        assert_eq!(copied, Point::new(5, 8));
+
+        let g3 = Grid::new(3, 3);
+        let copied2 = g3.copy_from(&g1);
+        assert_eq!(copied2, Point::new(3, 3));
+    }
+
+    #[test]
+    fn test_copy_from_same_grid_returns_size() {
+        let g = Grid::new(10, 10);
+        let copied = g.copy_from(&g);
+        assert_eq!(copied, Point::new(10, 10));
     }
 }
