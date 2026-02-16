@@ -7,7 +7,9 @@
 use std::collections::HashMap;
 
 use fontdue::{Font, FontSettings};
-use gruid_core::{grid::Frame, style::Color};
+use gruid_core::{Cell, grid::Frame, style::Color};
+
+use crate::TileManager;
 
 /// Default built-in font (DejaVu Sans Mono subset would be ideal, but for
 /// size we embed nothing and fall back to fontdue's glyph-not-found box).
@@ -34,30 +36,42 @@ pub(crate) struct GridRenderer {
     pixels: Vec<u32>,
     /// Glyph cache keyed by character
     glyph_cache: HashMap<char, GlyphCache>,
+    /// Optional tile manager for custom tile-based rendering.
+    tile_manager: Option<Box<dyn TileManager>>,
 }
 
 impl GridRenderer {
-    pub fn new(font_data: Option<&[u8]>, font_size: f32, cols: usize, rows: usize) -> Self {
+    pub fn new(
+        font_data: Option<&[u8]>,
+        font_size: f32,
+        cols: usize,
+        rows: usize,
+        tile_manager: Option<Box<dyn TileManager>>,
+    ) -> Self {
         let data = font_data.unwrap_or(FALLBACK_FONT);
         let font = Font::from_bytes(data, FontSettings::default()).expect("failed to parse font");
 
-        // Compute cell size from font metrics
-        let metrics = font
-            .horizontal_line_metrics(font_size)
-            .unwrap_or(fontdue::LineMetrics {
-                ascent: font_size * 0.8,
-                descent: -(font_size * 0.2),
-                line_gap: 0.0,
-                new_line_size: font_size,
-            });
+        // When a tile manager is present, cell dimensions come from it.
+        // Otherwise compute from font metrics.
+        let (cell_width, cell_height) = if let Some(ref tm) = tile_manager {
+            let (tw, th) = tm.tile_size();
+            (tw.max(1), th.max(1))
+        } else {
+            let metrics = font
+                .horizontal_line_metrics(font_size)
+                .unwrap_or(fontdue::LineMetrics {
+                    ascent: font_size * 0.8,
+                    descent: -(font_size * 0.2),
+                    line_gap: 0.0,
+                    new_line_size: font_size,
+                });
 
-        let cell_height = (metrics.ascent - metrics.descent).ceil() as usize;
-        // Use 'M' to determine cell width for monospace
-        let (m_metrics, _) = font.rasterize('M', font_size);
-        let cell_width = m_metrics.advance_width.ceil() as usize;
-
-        let cell_width = cell_width.max(1);
-        let cell_height = cell_height.max(1);
+            let ch = (metrics.ascent - metrics.descent).ceil() as usize;
+            // Use 'M' to determine cell width for monospace
+            let (m_metrics, _) = font.rasterize('M', font_size);
+            let cw = m_metrics.advance_width.ceil() as usize;
+            (cw.max(1), ch.max(1))
+        };
 
         let pixel_count = (cols * cell_width) * (rows * cell_height);
         let pixels = vec![0xFF000000; pixel_count]; // opaque black
@@ -71,7 +85,13 @@ impl GridRenderer {
             rows,
             pixels,
             glyph_cache: HashMap::new(),
+            tile_manager,
         }
+    }
+
+    /// Take the tile manager out of this renderer (used when rebuilding).
+    pub fn take_tile_manager(&mut self) -> Option<Box<dyn TileManager>> {
+        self.tile_manager.take()
     }
 
     /// Cell size in pixels.
@@ -106,7 +126,7 @@ impl GridRenderer {
             if col >= self.cols || row >= self.rows {
                 continue;
             }
-            self.draw_cell(col, row, fc.cell.ch, fc.cell.style.fg, fc.cell.style.bg);
+            self.draw_cell(col, row, &fc.cell);
         }
     }
 
@@ -129,7 +149,9 @@ impl GridRenderer {
     }
 
     /// Draw a single cell into the pixel buffer.
-    fn draw_cell(&mut self, col: usize, row: usize, ch: char, fg: Color, bg: Color) {
+    fn draw_cell(&mut self, col: usize, row: usize, cell: &Cell) {
+        let fg = cell.style.fg;
+        let bg = cell.style.bg;
         let cw = self.cell_width;
         let ch_px = self.cell_height;
         let buf_w = self.pixel_width();
@@ -149,13 +171,49 @@ impl GridRenderer {
             }
         }
 
-        // Rasterize and draw glyph
+        // Try tile manager first
+        if let Some(ref tm) = self.tile_manager {
+            if let Some(bitmap) = tm.get_tile(cell) {
+                let (fg_r, fg_g, fg_b) = fg_rgb(fg);
+                let (bg_r, bg_g, bg_b) = bg_rgb(bg);
+                let (tw, th) = tm.tile_size();
+                // Render monochrome alpha bitmap colorized with fg/bg
+                for ty in 0..th.min(ch_px) {
+                    for tx in 0..tw.min(cw) {
+                        let src_idx = ty * tw + tx;
+                        if src_idx >= bitmap.len() {
+                            continue;
+                        }
+                        let alpha = bitmap[src_idx];
+                        let px = x0 + tx;
+                        let py = y0 + ty;
+                        if px >= buf_w || py >= px_h {
+                            continue;
+                        }
+                        let idx = py * buf_w + px;
+                        if idx >= self.pixels.len() {
+                            continue;
+                        }
+                        let a = alpha as u32;
+                        let inv_a = 255 - a;
+                        let r = (fg_r as u32 * a + bg_r as u32 * inv_a) / 255;
+                        let g = (fg_g as u32 * a + bg_g as u32 * inv_a) / 255;
+                        let b = (fg_b as u32 * a + bg_b as u32 * inv_a) / 255;
+                        self.pixels[idx] = 0xFF000000 | (r << 16) | (g << 8) | b;
+                    }
+                }
+                return;
+            }
+        }
+
+        // Fall back to font-based rendering
+        let ch = cell.ch;
         if ch == ' ' || ch == '\0' {
             return;
         }
 
-        let (fg_r, fg_g, fg_b) = color_rgb(fg);
-        let (bg_r, bg_g, bg_b) = color_rgb(bg);
+        let (fg_r, fg_g, fg_b) = fg_rgb(fg);
+        let (bg_r, bg_g, bg_b) = bg_rgb(bg);
 
         // Ensure glyph is cached
         self.cache_glyph(ch);
@@ -252,9 +310,18 @@ fn color_to_pixel(c: Color) -> u32 {
 }
 
 #[inline]
-fn color_rgb(c: Color) -> (u8, u8, u8) {
+fn fg_rgb(c: Color) -> (u8, u8, u8) {
     if c == Color::DEFAULT {
         (200, 200, 200) // light gray for default foreground
+    } else {
+        (c.r(), c.g(), c.b())
+    }
+}
+
+#[inline]
+fn bg_rgb(c: Color) -> (u8, u8, u8) {
+    if c == Color::DEFAULT {
+        (0, 0, 0) // black for default background
     } else {
         (c.r(), c.g(), c.b())
     }

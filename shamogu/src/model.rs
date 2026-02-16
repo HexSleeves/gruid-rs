@@ -5,7 +5,7 @@ use gruid_core::{
     app::Effect,
     grid::Grid,
     messages::{Key, Msg},
-    style::{AttrMask, Style},
+    style::{AttrMask, Color, Style},
 };
 use gruid_ui::{Pager, PagerAction, PagerConfig, PagerKeys, PagerStyle, StyledText};
 
@@ -14,6 +14,7 @@ use crate::entity::*;
 use crate::game::Game;
 use crate::gamemap::*;
 use crate::terrain::*;
+use crate::tiles::ATTR_IN_MAP;
 
 pub const UI_WIDTH: i32 = 80;
 pub const UI_HEIGHT: i32 = 24;
@@ -209,69 +210,67 @@ impl ShamoguModel {
     fn draw_log(&self, grid: &mut Grid) {
         let log_area = grid.slice(Range::new(0, 0, UI_WIDTH, 2));
         let lines = self.game.log.recent_lines(UI_WIDTH as usize - 1, 2);
-        let log_fg = FG_SECONDARY;
 
         for (y, line) in lines.iter().enumerate() {
             for (x, ch) in line.chars().enumerate() {
                 if x >= UI_WIDTH as usize {
                     break;
                 }
-                let style = Style::default().with_fg(log_fg);
+                let style = Style::default().with_fg(FG_EMPH);
                 log_area.set(
                     Point::new(x as i32, y as i32),
                     Cell::default().with_char(ch).with_style(style),
                 );
             }
         }
-
-        // Color log entries based on style
-        // (simplified: just use grey for now, colored log entries in future)
     }
 
     fn draw_map(&self, grid: &mut Grid) {
         let map_area = grid.slice(Range::new(0, 2, UI_WIDTH, 2 + MAP_HEIGHT));
 
-        // Draw terrain
+        // --- Pass 1: terrain ---
         let sz = self.game.map.terrain.size();
         for y in 0..sz.y {
             for x in 0..sz.x {
                 let p = Point::new(x, y);
                 let known = self.game.map.known_terrain.at(p).unwrap_or(UNKNOWN);
                 if known == UNKNOWN {
-                    continue; // Leave blank
+                    continue;
                 }
 
                 let in_fov = self.game.in_fov(p);
-                let ch = terrain_rune(known);
 
-                // Interior walls render as space
+                // Interior walls (no passable neighbour) render as space.
                 let ch = if known == WALL && !has_passable_neighbor(&self.game.map, p) {
                     ' '
                 } else {
-                    ch
+                    terrain_rune(known)
                 };
 
-                let (fg, bg) = if in_fov {
-                    (FG, BG_SECONDARY)
+                // Per-terrain foreground when lit; dimmed when out of FOV.
+                let fg = if in_fov {
+                    terrain_fg(known)
                 } else {
-                    (FG_SECONDARY, BG)
+                    dim_color(terrain_fg(known))
                 };
 
-                let mut attrs = AttrMask::NONE;
-                if matches!(known, WALL | TRANSLUCENT_WALL) {
-                    attrs = AttrMask::BOLD;
-                }
+                let bg = if in_fov { BG_LIT } else { BG };
+
+                let attrs = if in_fov && matches!(known, WALL | TRANSLUCENT_WALL) {
+                    AttrMask::BOLD | ATTR_IN_MAP
+                } else {
+                    ATTR_IN_MAP
+                };
 
                 let style = Style { fg, bg, attrs };
                 map_area.set(p, Cell::default().with_char(ch).with_style(style));
             }
         }
 
-        // Draw entities (sorted by render order)
-        let mut draw_list: Vec<(Point, char, Style)> = Vec::new();
-
+        // --- Pass 2: entities ---
         for (id, entity) in self.game.alive_actors() {
-            let pos = if id == PLAYER_ID || self.game.in_fov(entity.pos) {
+            let in_fov_at_pos = self.game.in_fov(entity.pos);
+            let pos = if id == PLAYER_ID || in_fov_at_pos {
                 entity.pos
             } else if entity.known_pos != INVALID_POS {
                 entity.known_pos
@@ -280,83 +279,115 @@ impl ShamoguModel {
             };
 
             let fg = if id == PLAYER_ID {
-                FG_EMPH
-            } else if self.game.in_fov(entity.pos) {
+                PLAYER_FG
+            } else if in_fov_at_pos {
                 monster_color(entity.ch)
             } else {
-                FG_SECONDARY
+                FG_DIM
             };
 
-            let bg = if self.game.in_fov(pos) {
-                BG_SECONDARY
-            } else {
-                BG
-            };
+            let bg = if self.game.in_fov(pos) { BG_LIT } else { BG };
 
             let style = Style {
                 fg,
                 bg,
-                attrs: AttrMask::NONE,
+                attrs: ATTR_IN_MAP,
             };
-            draw_list.push((pos, entity.ch, style));
-        }
-
-        // Draw entities with higher render order on top
-        for (pos, ch, style) in &draw_list {
-            map_area.set(*pos, Cell::default().with_char(*ch).with_style(*style));
+            map_area.set(pos, Cell::default().with_char(entity.ch).with_style(style));
         }
     }
 
     fn draw_status(&self, grid: &mut Grid) {
         let status_area = grid.slice(Range::new(0, UI_HEIGHT - 1, UI_WIDTH, UI_HEIGHT));
 
-        // Build status text
-        let mut status = String::new();
+        let bar_bg = BG_LIT;
+        let bar_fg = FG_EMPH;
 
-        // Level
-        status.push_str(&format!(" L:{} ", self.game.map.level));
-
-        // Turn
-        status.push_str(&format!("T:{} ", self.game.turn));
-
-        // HP
-        if let Some(actor) = self.game.player_actor() {
-            status.push_str(&format!("HP:{}/{} ", actor.hp, actor.max_hp));
-            status.push_str(&format!("A:{} ", actor.attack));
-            status.push_str(&format!("D:{} ", actor.defense));
-        }
-
-        // Game over indicator
-        if self.mode == Mode::GameOver {
-            status.push_str("*** DEAD *** Press Q/ESC to quit");
-        }
-
-        // Draw status bar
-        let style = Style {
-            fg: FG_EMPH,
-            bg: BG_SECONDARY,
+        // Fill entire status line with background.
+        let base = Style {
+            fg: bar_fg,
+            bg: bar_bg,
             attrs: AttrMask::NONE,
         };
-
-        // Fill entire status line with background
         for x in 0..UI_WIDTH {
             status_area.set(
                 Point::new(x, 0),
-                Cell::default().with_char(' ').with_style(style),
+                Cell::default().with_char(' ').with_style(base),
             );
         }
 
-        // Write status text
-        for (x, ch) in status.chars().enumerate() {
-            if x >= UI_WIDTH as usize {
-                break;
+        // Coloured segments: (text, fg_colour).
+        let mut segs: Vec<(String, Color)> = Vec::new();
+
+        segs.push((format!(" L:{} ", self.game.map.level), GREEN));
+        segs.push((format!("T:{} ", self.game.turn), bar_fg));
+
+        if let Some(actor) = self.game.player_actor() {
+            let hp_color = if actor.hp <= actor.max_hp / 3 {
+                HP_CRIT
+            } else if actor.hp <= 3 * actor.max_hp / 4 {
+                HP_WARN
+            } else {
+                HP_GOOD
+            };
+            segs.push(("HP:".into(), bar_fg));
+            segs.push((format!("{}/{}", actor.hp, actor.max_hp), hp_color));
+            segs.push((" ".into(), bar_fg));
+
+            segs.push(("A:".into(), bar_fg));
+            segs.push((format!("{}", actor.attack), STAT_BLUE));
+            segs.push((" ".into(), bar_fg));
+
+            segs.push(("D:".into(), bar_fg));
+            segs.push((format!("{}", actor.defense), bar_fg));
+            segs.push((" ".into(), bar_fg));
+        }
+
+        if self.mode == Mode::GameOver {
+            segs.push(("*** DEAD *** ".into(), RED));
+        }
+
+        // Render coloured segments onto the bar.
+        let mut x: i32 = 0;
+        for (text, fg) in &segs {
+            let style = Style {
+                fg: *fg,
+                bg: bar_bg,
+                attrs: AttrMask::NONE,
+            };
+            for ch in text.chars() {
+                if x >= UI_WIDTH {
+                    break;
+                }
+                status_area.set(
+                    Point::new(x, 0),
+                    Cell::default().with_char(ch).with_style(style),
+                );
+                x += 1;
             }
-            status_area.set(
-                Point::new(x as i32, 0),
-                Cell::default().with_char(ch).with_style(style),
-            );
         }
     }
+}
+
+/// Map terrain type to its foreground colour when lit.
+fn terrain_fg(t: gruid_rl::grid::Cell) -> Color {
+    match t {
+        WALL => WALL_FG,
+        FLOOR => FLOOR_FG,
+        FOLIAGE => FOLIAGE_FG,
+        RUBBLE => RUBBLE_FG,
+        TRANSLUCENT_WALL => TLWALL_FG,
+        _ => FG_DIM,
+    }
+}
+
+/// Dim an RGB colour for out-of-FOV display.
+fn dim_color(c: Color) -> Color {
+    if c == Color::DEFAULT {
+        return FG_DIM;
+    }
+    // Halve brightness.
+    Color::from_rgb(c.r() / 2, c.g() / 2, c.b() / 2)
 }
 
 /// Check if a wall cell has any passable neighbor (for interior wall detection).

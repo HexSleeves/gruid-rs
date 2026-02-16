@@ -2,6 +2,7 @@
 
 use gruid_core::app::{AppRunner, EventLoopDriver};
 use gruid_winit::{WinitConfig, WinitDriver};
+use shamogu_lib::tiles::ShamoguTileManager;
 use shamogu_lib::{ShamoguModel, UI_HEIGHT, UI_WIDTH};
 
 fn main() {
@@ -11,6 +12,7 @@ fn main() {
         font_size: 18.0,
         grid_width: UI_WIDTH,
         grid_height: UI_HEIGHT,
+        tile_manager: Some(Box::new(ShamoguTileManager::new())),
         ..Default::default()
     });
 

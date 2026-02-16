@@ -27,6 +27,26 @@ use gruid_core::{
     messages::Msg,
 };
 
+// ---------------------------------------------------------------------------
+// TileManager trait
+// ---------------------------------------------------------------------------
+
+/// A tile manager provides custom tile images for grid cells.
+///
+/// Each tile is a **monochrome alpha bitmap** (one byte per pixel, 0=background,
+/// 255=foreground). The renderer colorizes tiles using the cell's fg/bg colors.
+///
+/// This is similar to Go gruid-sdl's TileManager interface.
+pub trait TileManager: Send + 'static {
+    /// Tile size in pixels (width, height). All tiles must be this size.
+    fn tile_size(&self) -> (usize, usize);
+
+    /// Return the monochrome alpha bitmap for the given cell, if a custom tile exists.
+    /// Return `None` to fall back to font-based rendering.
+    /// The returned slice must have exactly `tile_width * tile_height` bytes.
+    fn get_tile(&self, cell: &gruid_core::Cell) -> Option<&[u8]>;
+}
+
 use renderer::GridRenderer;
 
 // ---------------------------------------------------------------------------
@@ -47,6 +67,10 @@ pub struct WinitConfig {
     pub grid_width: i32,
     /// Number of grid rows.
     pub grid_height: i32,
+    /// Optional tile manager for custom tile-based rendering.
+    /// When present, cell dimensions come from [`TileManager::tile_size()`]
+    /// and tiles are rendered as colorized monochrome bitmaps.
+    pub tile_manager: Option<Box<dyn TileManager>>,
 }
 
 impl Default for WinitConfig {
@@ -57,6 +81,7 @@ impl Default for WinitConfig {
             font_size: 18.0,
             grid_width: 80,
             grid_height: 24,
+            tile_manager: None,
         }
     }
 }
@@ -178,6 +203,7 @@ impl ApplicationHandler for WinitApp {
             physical_font_size,
             self.config.grid_width as usize,
             self.config.grid_height as usize,
+            self.config.tile_manager.take(),
         );
 
         // The renderer now works entirely in physical pixels.
@@ -237,11 +263,13 @@ impl ApplicationHandler for WinitApp {
                     state.scale_factor = scale_factor;
                     // Rebuild renderer with the new physical font size.
                     let physical_font_size = self.config.font_size * scale_factor as f32;
+                    let tile_manager = state.renderer.take_tile_manager();
                     state.renderer = GridRenderer::new(
                         self.config.font_data.as_deref(),
                         physical_font_size,
                         self.runner.width() as usize,
                         self.runner.height() as usize,
+                        tile_manager,
                     );
                     // Force full redraw.
                     self.runner.handle_msg(Msg::Screen {

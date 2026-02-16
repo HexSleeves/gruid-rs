@@ -10,5 +10,8 @@ pub mod gamemap;
 pub mod log;
 pub mod model;
 pub mod terrain;
+pub mod tile_data;
+pub mod tiles;
 
 pub use model::{ShamoguModel, UI_HEIGHT, UI_WIDTH};
+pub use tiles::ATTR_IN_MAP;
