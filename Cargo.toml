@@ -33,8 +33,8 @@ serde           = { version = "1", features = ["derive"] }
 winit           = "0.30"
 softbuffer      = "0.4"
 fontdue         = "0.9"
-rand            = "0.9"
-crossterm       = "0.28"
-wgpu            = "24"
+rand            = "0.10"
+crossterm       = "0.29"
+wgpu            = "28"
 bytemuck        = { version = "1", features = ["derive"] }
 log             = "0.4"

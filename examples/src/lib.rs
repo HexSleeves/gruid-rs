@@ -18,7 +18,7 @@ use gruid_rl::{
     mapgen::{CellularAutomataRule, MapGen},
 };
 use gruid_ui::{BoxDecor, Pager, PagerAction, PagerConfig, PagerKeys, PagerStyle, StyledText};
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 
 pub const WIDTH: i32 = 80;
 pub const HEIGHT: i32 = 24;
@@ -197,7 +197,7 @@ impl Game {
         let map = RlGrid::new(WIDTH, MAP_HEIGHT);
         map.fill(WALL);
 
-        let mut mg = MapGen::with_grid(map.clone(), rng.clone());
+        let mut mg = MapGen::with_grid(map.clone(), rand::rngs::StdRng::from_rng(&mut rng));
         let rules = vec![
             CellularAutomataRule {
                 w_cutoff1: 5,

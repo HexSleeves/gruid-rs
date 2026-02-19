@@ -231,10 +231,12 @@ impl WgpuApp {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
                         store: wgpu::StoreOp::Store,
                     },
+                    depth_slice: None,
                 })],
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
 
             pass.set_pipeline(&gpu.pipeline);
@@ -286,7 +288,7 @@ impl WgpuApp {
         .expect("no suitable GPU adapter found");
 
         let (device, queue) =
-            pollster_block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None))
+            pollster_block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
                 .expect("failed to create GPU device");
 
         let surface_caps = surface.get_capabilities(&adapter);
@@ -430,7 +432,7 @@ impl WgpuApp {
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("grid pipeline layout"),
             bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+            immediate_size: 0,
         });
 
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -492,7 +494,7 @@ impl WgpuApp {
                 })],
                 compilation_options: Default::default(),
             }),
-            multiview: None,
+            multiview_mask: None,
             cache: None,
         });
 

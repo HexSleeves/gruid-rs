@@ -1,6 +1,6 @@
 //! Combat system — damage calculation matching Go shamogu.
 
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 /// Maximum damage per individual attack roll.
 const MAX_ATTACK_DAMAGE: i32 = 3;

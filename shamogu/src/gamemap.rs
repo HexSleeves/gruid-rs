@@ -8,7 +8,7 @@ use gruid_rl::{
     mapgen::{CellularAutomataRule, MapGen},
     vault::Vault,
 };
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::terrain::*;
 

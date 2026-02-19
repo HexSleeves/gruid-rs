@@ -3,7 +3,7 @@
 use gruid_core::Point;
 use gruid_paths::PathRange;
 use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use rand::{Rng, RngExt, SeedableRng};
 
 use crate::combat;
 use crate::entity::*;
@@ -29,7 +29,7 @@ impl Default for Game {
 
 impl Game {
     pub fn new() -> Self {
-        let rng = SmallRng::from_os_rng();
+        let rng = SmallRng::from_rng(&mut rand::rng());
         let map = GameMap::new();
         let map_range = gruid_core::Range::new(0, 0, MAP_WIDTH, MAP_HEIGHT);
         let pr = PathRange::new(map_range);

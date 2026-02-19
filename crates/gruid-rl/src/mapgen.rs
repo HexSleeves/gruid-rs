@@ -8,7 +8,7 @@
 use crate::grid::{Cell, Grid};
 use gruid_core::Point;
 use gruid_paths::PathRange;
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 /// Trait for choosing a random neighbor during random-walk cave generation.
 pub trait RandomWalker {
