@@ -1,95 +1,70 @@
 # gruid-rs TODO
 
-Prioritized task list. See `CONTEXT.md` for architecture details.
-
-Current: ~14,225 LOC, 8 crates, 228 tests, ~99% Go API parity.
+9 crates, ~18,700 LOC, 219 tests. ~99% Go API parity.
 
 ---
 
-## ✅ All P0 Blockers — DONE
+## ✅ Completed
 
-1. ✅ StyledText `@`-prefix markup protocol
-2. ✅ Menu 2D grid layout + ActiveInvokable
-3. ✅ Range relative Line/Lines/Column/Columns
-4. ✅ Range Add/Sub translation + RelMsg
-5. ✅ Grid Resize (core + rl)
-6. ✅ rl::Grid mutable iteration (for_each_mut, map_cells_mut, at_unchecked)
-7. ✅ FOV from() bug fixed
-8. ✅ Serde on all key types (PathRange, EventQueue, rl::Grid, FOV)
+### Framework (all P0/P1/P2 closed)
+- ✅ Core: Grid, Cell, Point, Range, Style, Msg, Model, Driver, AppRunner, FrameEncoder
+- ✅ Paths: A*, Dijkstra, BFS, JPS (4+8 way), Connected Components, PathRange
+- ✅ RL: FOV (ray + SSC), MapGen (cellular automata + random walk), Vault, EventQueue
+- ✅ UI: Menu, Pager, TextInput, Label, BoxDecor, StyledText, Replay
+- ✅ Crossterm: poll-based terminal Driver
+- ✅ Winit: event-loop graphical Driver (softbuffer + fontdue)
+- ✅ Wgpu: GPU-accelerated graphical Driver (instanced quads + glyph atlas)
+- ✅ Web: WASM browser Driver (excluded from workspace, wasm32-only)
+- ✅ Serde: opt-in on all key types
+- ✅ TileManager trait in gruid-core, re-exported by winit + wgpu
 
-## ✅ All P1 Major Features — DONE
-
-- ✅ Pager: lines(), set_cursor(Point), start key, 8-col scroll, mouse, view()->Range, line-number footer
-- ✅ Menu: mouse (click/wheel/hover/outside-quit), page numbers in footer
-- ✅ Label: background fill, AdjustWidth
-- ✅ BoxDecor: markup-aware title/footer
-- ✅ Neighbors: diagonal()
-- ✅ StyledText lines() markup state preservation
-- ✅ Grid Display, points() iterator
-- ✅ Range PartialEq empty normalization, In containment
-- ✅ MapGen::with_grid()
-- ✅ WASM driver (gruid-web)
-
-## ✅ All P2 Polish — DONE
-
-- ✅ R1: Replay widget (help overlay, mouse, grid auto-resize)
-- ✅ R2: Pager line number in footer
-- ✅ R3: TextInput cursor auto-reverse style
-- ✅ R4: ModMask Display combos ("Ctrl+Shift")
-- ✅ R5: StyledText with_textf/with convenience constructors
-- ✅ R6: PathRange capacity-preserving set_range + JPS jps_path_into buffer reuse
+### Shamogu (Phase 1–3 MVP)
+- ✅ Map generation (cellular automata + vaults + tunnels)
+- ✅ Player + FOV + 8-dir movement + vi keys + mouse
+- ✅ 14/27 monster types with A* AI
+- ✅ Combat (bump-to-attack, HP/ATK/DEF)
+- ✅ UI (status bar, message log, help pager)
+- ✅ Crossterm + Winit + Wgpu backends
+- ✅ 174 custom monochrome tile bitmaps
 
 ---
 
-## 🟦 Active: Port shamogu (E1)
+## 🟦 Active: Shamogu port continuation
 
-Port https://codeberg.org/anaseto/shamogu to Rust using gruid-rs.
-This proves the framework and surfaces any remaining gaps.
-See `SHAMOGU_PORT_PROMPT.md` for the full handoff plan.
+See README.md Shamogu section for detailed remaining features.
 
-### Phases
-1. ✅ Clone & study Go shamogu (~17k LOC, ~41 files)
-2. ✅ Scaffold: new binary crate `shamogu/`, model struct, main
-3. ✅ Map generation: cellular automata + vaults + tunnels + keep_connected
-4. ✅ Player + FOV: movement, vision_map + ssc_vision_map, draw loop
-5. ✅ Monsters + pathfinding: entity system, A* chase AI, wandering
-6. ✅ Combat: bump-to-attack with probability tables, death handling
-7. ✅ UI: status bar (HP/A/D/Level/Turn), message log (2 lines), help pager
-8. 🔲 Items: spirits, comestibles, inventory menu
-9. 🔲 Animations: Effect::Cmd timers
-10. 🔲 Save/load: serde
+### Phase 4: Items + Spirits + Inventory
+- 🔲 Monster traits bitfield (40 traits)
+- 🔲 Status effects (19 statuses with durations)
+- 🔲 Spirits (~20 totemic spirits with abilities)
+- 🔲 Comestibles (7 consumable items)
+- 🔲 Inventory (3 spirit slots + 5 item slots, equip/use menus)
 
-### Current State (Phase 1-3 MVP)
-- 9 source files, ~1500 LOC
-- Playable: generated cave map, player @, 14 monster types, FOV, combat
-- `cargo run --bin shamogu`
+### Phase 5: Advanced combat + terrain
+- 🔲 Ranged attacks, special abilities, knockback
+- 🔲 Clouds (steam, fire, poison with propagation)
+- 🔲 Runic traps (5 types)
+- 🔲 Terrain: foliage, rubble, translucent walls
+- 🔲 13 remaining monster types
+
+### Phase 6: World + progression
+- 🔲 10 dungeon levels with stairs
+- 🔲 Noise propagation system
+- 🔲 Auto-explore + auto-travel
+- 🔲 Animations + visual effects
+
+### Phase 7: Polish
+- 🔲 Save/load (serde)
+- 🔲 Character dump
+- 🔲 Game-over screen
 
 ---
 
-## 🟦 Enhancements (beyond Go original)
+## 🟦 Enhancements
 
 ### E2. Port Go test suite
-- Go has 3,124 lines of tests we haven't ported
+- Go has 3,124 lines of tests not yet ported
 - Biggest gaps: Grid slice edge cases (820 lines), StyledText (327 lines)
-- Would give high confidence in correctness
-
-### ✅ E3. GPU-accelerated driver
-- ✅ `gruid-wgpu` crate using wgpu for GPU tile rendering
-- ✅ Instanced quad rendering with WGSL shader
-- ✅ Glyph atlas (fontdue → R8 texture, dynamic growth)
-- ✅ TileManager trait support (same interface as gruid-winit)
-- ✅ DPI-aware tile scaling
-- ✅ Window resize with grid recomputation
-- ✅ Example binary: `cargo run --bin roguelike-wgpu`
-- ✅ Shamogu binary: `cargo run -p shamogu --bin shamogu-wgpu --features wgpu`
 
 ### E4. Typed errors
-- Replace `Box<dyn Error>` with per-crate error types
-
-### E5. Documentation
-- Crate-level rustdoc with examples for each module
-- Standalone examples: menu demo, pathfinding visualizer
-
-### E6. Publish to crates.io
-- Add proper metadata, README per crate, license files
-- Version 0.1.0 initial publish
+- Replace `Box<dyn Error>` with per-crate error enums

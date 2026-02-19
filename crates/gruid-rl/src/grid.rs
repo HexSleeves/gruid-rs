@@ -50,7 +50,6 @@ struct GridBuffer {
     /// Full buffer width (not the slice width).
     width: i32,
     /// Full buffer height.
-    #[allow(dead_code)]
     height: i32,
 }
 

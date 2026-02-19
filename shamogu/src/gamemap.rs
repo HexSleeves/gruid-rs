@@ -106,8 +106,6 @@ enum PlaceKind {
 struct VaultPlace {
     pos: Point,
     kind: PlaceKind,
-    #[allow(dead_code)]
-    used: bool,
 }
 
 enum Placement {
@@ -504,13 +502,11 @@ fn dig_vault(mg: &mut MapGenState, vi: &mut VaultInfo, rng: &mut impl Rng) {
             'W' => vi.places.push(VaultPlace {
                 pos: q,
                 kind: PlaceKind::Waypoint,
-                used: false,
             }),
             '!' => {
                 vi.places.push(VaultPlace {
                     pos: q,
                     kind: PlaceKind::Item,
-                    used: false,
                 });
                 if in_map(q) {
                     let idx = mg.idx(q);
@@ -521,7 +517,6 @@ fn dig_vault(mg: &mut MapGenState, vi: &mut VaultInfo, rng: &mut impl Rng) {
                 vi.places.push(VaultPlace {
                     pos: q,
                     kind: PlaceKind::Static,
-                    used: false,
                 });
                 if in_map(q) {
                     let idx = mg.idx(q);
