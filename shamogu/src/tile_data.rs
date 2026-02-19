@@ -2,7 +2,7 @@
 //! Each tile is a 16x24 monochrome bitmap (384 bytes).
 //! 0 = background, 255 = foreground.
 //!
-//! Generated from shamogu/tiles/ directory.
+//! Generated from source PNG tile images (no longer in repo).
 
 /// Tile width in pixels.
 pub const TILE_WIDTH: usize = 16;
