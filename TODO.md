@@ -73,8 +73,15 @@ See `SHAMOGU_PORT_PROMPT.md` for the full handoff plan.
 - Biggest gaps: Grid slice edge cases (820 lines), StyledText (327 lines)
 - Would give high confidence in correctness
 
-### E3. GPU-accelerated driver
-- `gruid-wgpu` crate using wgpu for GPU tile rendering
+### ✅ E3. GPU-accelerated driver
+- ✅ `gruid-wgpu` crate using wgpu for GPU tile rendering
+- ✅ Instanced quad rendering with WGSL shader
+- ✅ Glyph atlas (fontdue → R8 texture, dynamic growth)
+- ✅ TileManager trait support (same interface as gruid-winit)
+- ✅ DPI-aware tile scaling
+- ✅ Window resize with grid recomputation
+- ✅ Example binary: `cargo run --bin roguelike-wgpu`
+- ✅ Shamogu binary: `cargo run -p shamogu --bin shamogu-wgpu --features wgpu`
 
 ### E4. Typed errors
 - Replace `Box<dyn Error>` with per-crate error types

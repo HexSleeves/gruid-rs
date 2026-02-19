@@ -18,9 +18,15 @@ name = "shamogu-winit"
 path = "src/main_winit.rs"
 required-features = ["winit"]
 
+[[bin]]
+name = "shamogu-wgpu"
+path = "src/main_wgpu.rs"
+required-features = ["wgpu"]
+
 [features]
 default = []
 winit = ["dep:gruid-winit"]
+wgpu = ["dep:gruid-wgpu"]
 
 [dependencies]
 gruid-core      = { workspace = true }
@@ -29,4 +35,5 @@ gruid-rl        = { workspace = true }
 gruid-ui        = { workspace = true }
 gruid-crossterm = { workspace = true }
 gruid-winit     = { workspace = true, optional = true }
+gruid-wgpu      = { workspace = true, optional = true }
 rand            = { workspace = true }

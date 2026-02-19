@@ -1,0 +1,15 @@
+[package]
+name         = "gruid-wgpu"
+description  = "GPU-accelerated graphical backend for gruid using wgpu"
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+
+[dependencies]
+gruid-core = { workspace = true }
+winit      = { workspace = true }
+wgpu       = { workspace = true }
+fontdue    = { workspace = true }
+bytemuck   = { workspace = true }
+log        = { workspace = true }

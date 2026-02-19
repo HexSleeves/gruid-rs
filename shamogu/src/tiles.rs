@@ -32,31 +32,35 @@ impl ShamoguTileManager {
     pub fn new() -> Self {
         Self
     }
+
+    /// Tile size in pixels (backend-agnostic).
+    pub fn tile_size_raw(&self) -> (usize, usize) {
+        (crate::tile_data::TILE_WIDTH, crate::tile_data::TILE_HEIGHT)
+    }
+
+    /// Get tile bitmap for a cell (backend-agnostic).
+    pub fn get_tile_raw(&self, cell: &gruid_core::Cell) -> Option<&[u8]> {
+        let ch = cell.ch;
+        let in_map = cell.style.attrs.contains(ATTR_IN_MAP);
+        if in_map {
+            if let Some(tile) = crate::tile_data::map_tile(ch) {
+                return Some(tile);
+            }
+        }
+        if let Some(tile) = crate::tile_data::letter_tile(ch) {
+            return Some(tile);
+        }
+        None
+    }
 }
 
 #[cfg(feature = "winit")]
 impl gruid_winit::TileManager for ShamoguTileManager {
     fn tile_size(&self) -> (usize, usize) {
-        (crate::tile_data::TILE_WIDTH, crate::tile_data::TILE_HEIGHT)
+        self.tile_size_raw()
     }
 
     fn get_tile(&self, cell: &gruid_core::Cell) -> Option<&[u8]> {
-        let ch = cell.ch;
-        let in_map = cell.style.attrs.contains(ATTR_IN_MAP);
-
-        if in_map {
-            // Try map tile first, fall back to letter tile
-            if let Some(tile) = crate::tile_data::map_tile(ch) {
-                return Some(tile);
-            }
-        }
-
-        // Letter tile (UI text, or map fallback)
-        if let Some(tile) = crate::tile_data::letter_tile(ch) {
-            return Some(tile);
-        }
-
-        // No tile found — renderer will fall back to font
-        None
+        self.get_tile_raw(cell)
     }
 }

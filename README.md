@@ -22,8 +22,8 @@ The project also includes **Shamogu** (*Shamanic Mountain Guardian*), a coffee-b
 
 | | |
 |---|---|
-| **Workspace** | 8 crates + examples + shamogu game |
-| **LOC** | ~17,300 Rust (framework: ~13,400 · shamogu: ~2,970 · examples: ~935) |
+| **Workspace** | 9 crates + examples + shamogu game |
+| **LOC** | ~18,700 Rust (framework: ~14,700 · shamogu: ~2,970 · examples: ~960) |
 | **Tests** | 221 passing |
 | **Edition** | Rust 2024 (requires 1.85+) |
 | **License** | MIT OR Apache-2.0 |
@@ -38,7 +38,8 @@ The project also includes **Shamogu** (*Shamanic Mountain Guardian*), a coffee-b
 gruid-core ─────┬── gruid-paths ──── gruid-rl
                 ├── gruid-ui
                 ├── gruid-crossterm
-                └── gruid-winit
+                ├── gruid-winit
+                └── gruid-wgpu
 ```
 
 | Crate | LOC | Description |
@@ -49,6 +50,7 @@ gruid-core ─────┬── gruid-paths ──── gruid-rl
 | **[gruid-ui](crates/gruid-ui)** | 2,400 | Menu, Pager, TextInput, Label, StyledText with `@r`/`@g`/`@b` markup, Box drawing |
 | **[gruid-crossterm](crates/gruid-crossterm)** | 600 | Terminal backend — poll-based `Driver` using [crossterm](https://docs.rs/crossterm) |
 | **[gruid-winit](crates/gruid-winit)** | 1,000 | Graphical backend — event-loop `EventLoopDriver` using [winit](https://docs.rs/winit) + [softbuffer](https://docs.rs/softbuffer) + [fontdue](https://docs.rs/fontdue). Custom tile rendering via `TileManager` trait |
+| **[gruid-wgpu](crates/gruid-wgpu)** | 1,400 | GPU-accelerated backend — event-loop `EventLoopDriver` using [wgpu](https://docs.rs/wgpu) + [winit](https://docs.rs/winit) + [fontdue](https://docs.rs/fontdue). Instanced quad rendering with glyph atlas |
 | **gruid-tiles** | — | Font-to-tile rendering (rusttype + image). Currently excluded from workspace |
 
 ---

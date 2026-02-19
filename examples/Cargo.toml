@@ -10,6 +10,7 @@ description = "Examples for gruid"
 gruid-core = { workspace = true }
 gruid-crossterm = { workspace = true }
 gruid-winit = { workspace = true }
+gruid-wgpu = { workspace = true }
 gruid-paths = { workspace = true }
 gruid-rl = { workspace = true }
 gruid-ui = { workspace = true }
@@ -22,3 +23,7 @@ path = "roguelike.rs"
 [[bin]]
 name = "roguelike-winit"
 path = "roguelike_winit.rs"
+
+[[bin]]
+name = "roguelike-wgpu"
+path = "roguelike_wgpu.rs"
