@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gruid-rs Architecture</title>
+<style>
+:root {
+  --bg: #1a1b26;
+  --bg2: #24283b;
+  --bg3: #2f3349;
+  --fg: #c0caf5;
+  --fg2: #a9b1d6;
+  --fg3: #565f89;
+  --accent: #7aa2f7;
+  --green: #9ece6a;
+  --orange: #e0af68;
+  --red: #f7768e;
+  --purple: #bb9af7;
+  --cyan: #7dcfff;
+  --teal: #73daca;
+  --yellow: #e0af68;
+  --border: #3b4261;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--fg3); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Header */
+.hero {
+  text-align: center;
+  padding: 4rem 2rem 3rem;
+  background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 0.5rem;
+}
+.hero .subtitle {
+  font-size: 1.15rem;
+  color: var(--fg2);
+  max-width: 600px;
+  margin: 0 auto 1.5rem;
+}
+.hero .stats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.hero .stat {
+  text-align: center;
+}
+.hero .stat-val {
+  font-size: 1.8rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+.hero .stat-label {
+  font-size: 0.8rem;
+  color: var(--fg3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Navigation */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 0 2rem;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+nav .nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0;
+}
+nav a {
+  color: var(--fg3);
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+nav a:hover, nav a.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Main content */
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+section {
+  margin-bottom: 4rem;
+}
+
+h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--fg);
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--border);
+}
+h2 .icon { margin-right: 0.5rem; }
+
+h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--fg2);
+  margin: 1.5rem 0 0.75rem;
+}
+
+p { margin-bottom: 1rem; color: var(--fg2); }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--bg3);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  color: var(--teal);
+}
+
+pre {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--fg);
+}
+pre .kw { color: var(--purple); }
+pre .ty { color: var(--cyan); }
+pre .fn { color: var(--accent); }
+pre .st { color: var(--green); }
+pre .cm { color: var(--fg3); font-style: italic; }
+pre .num { color: var(--orange); }
+
+/* Diagram containers */
+.diagram {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+.diagram svg { display: block; margin: 0 auto; }
+
+/* Cards */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.card h4 {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+.card .loc {
+  font-size: 0.8rem;
+  color: var(--fg3);
+  font-family: var(--font-mono);
+  margin-bottom: 0.75rem;
+}
+.card p {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+}
+.card .modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+.card .mod-tag {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  background: var(--bg3);
+  color: var(--teal);
+  padding: 0.2em 0.6em;
+  border-radius: 4px;
+}
+
+/* Comparison table */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+th {
+  background: var(--bg3);
+  color: var(--fg);
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--fg2);
+}
+tr:hover td { background: var(--bg2); }
+
+/* Tabs for interactive sections */
+.tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+.tab {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--fg3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: var(--font-sans);
+}
+.tab:hover { color: var(--fg2); }
+.tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Flow diagram */
+.flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 1rem 0;
+}
+.flow-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--fg);
+  text-align: center;
+  white-space: nowrap;
+}
+.flow-box.highlight {
+  border-color: var(--accent);
+  background: rgba(122, 162, 247, 0.1);
+  color: var(--accent);
+}
+.flow-arrow {
+  color: var(--fg3);
+  font-size: 1.2rem;
+  padding: 0 0.5rem;
+}
+
+/* Expandable sections */
+details {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 1rem 0;
+  overflow: hidden;
+}
+details summary {
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--fg);
+  user-select: none;
+}
+details summary:hover { color: var(--accent); }
+details[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+details .inner {
+  padding: 1.25rem;
+}
+
+/* Badge */
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  padding: 0.15em 0.5em;
+  border-radius: 4px;
+  font-weight: 600;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+}
+.badge-green { background: rgba(158,206,106,0.15); color: var(--green); }
+.badge-orange { background: rgba(224,175,104,0.15); color: var(--orange); }
+.badge-red { background: rgba(247,118,142,0.15); color: var(--red); }
+.badge-blue { background: rgba(122,162,247,0.15); color: var(--accent); }
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: var(--fg3);
+  font-size: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .hero h1 { font-size: 2rem; }
+  .hero .stats { gap: 1rem; }
+  .card-grid { grid-template-columns: 1fr; }
+  main { padding: 1rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>gruid-rs</h1>
+  <p class="subtitle">Cross-platform grid-based UI &amp; game framework in Rust, using the Elm Architecture</p>
+  <div class="stats">
+    <div class="stat"><div class="stat-val">8</div><div class="stat-label">Crates</div></div>
+    <div class="stat"><div class="stat-val">17.3K</div><div class="stat-label">Lines of Rust</div></div>
+    <div class="stat"><div class="stat-val">219</div><div class="stat-label">Tests</div></div>
+    <div class="stat"><div class="stat-val">0</div><div class="stat-label">Deps (core)</div></div>
+    <div class="stat"><div class="stat-val">3</div><div class="stat-label">Backends</div></div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a href="#overview" class="active">Overview</a>
+    <a href="#elm">Elm Architecture</a>
+    <a href="#crates">Crate Map</a>
+    <a href="#grid">Grid System</a>
+    <a href="#drivers">Drivers</a>
+    <a href="#paths">Pathfinding</a>
+    <a href="#rl">Roguelike</a>
+    <a href="#ui">UI Widgets</a>
+    <a href="#design">Design Decisions</a>
+    <a href="#shamogu">Shamogu</a>
+  </div>
+</nav>
+
+<main>
+
+<!-- ========== OVERVIEW ========== -->
+<section id="overview">
+  <h2><span class="icon">📐</span> Overview</h2>
+  <p>
+    <strong>gruid-rs</strong> is a Rust reimplementation of <a href="https://codeberg.org/anaseto/gruid" style="color:var(--accent)">gruid</a>,
+    a Go cross-platform grid-based UI and game framework. It uses the <strong>Elm Architecture</strong>
+    (Model → Update → View) to build terminal and graphical applications — especially roguelikes.
+  </p>
+  <p>
+    The workspace is split into focused crates with zero required dependencies for the core.
+    Applications define a <code>Model</code> that receives messages, returns effects, and draws to a
+    shared <code>Grid</code>. The framework diffs the grid and flushes only changed cells to the backend driver.
+  </p>
+
+  <div class="diagram">
+    <h3 style="text-align:center; margin-bottom:1rem">High-Level Data Flow</h3>
+    <div class="flow">
+      <div class="flow-box">Input<br><small style="color:var(--fg3)">keyboard / mouse</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box highlight">Msg</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box highlight">Model::update()</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Effect</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box highlight">Model::draw()</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Grid</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">diff</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">Frame</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box highlight">Driver::flush()</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== ELM ARCHITECTURE ========== -->
+<section id="elm">
+  <h2><span class="icon">🔄</span> Elm Architecture</h2>
+  <p>
+    Every gruid-rs application is structured around three concepts: a <strong>Model</strong> holding application state,
+    an <strong>update</strong> function that processes messages and returns side effects, and a <strong>draw</strong>
+    function that renders the model to a grid.
+  </p>
+
+  <div class="tabs" data-group="elm">
+    <button class="tab active" data-target="elm-trait">Model Trait</button>
+    <button class="tab" data-target="elm-msg">Messages</button>
+    <button class="tab" data-target="elm-effect">Effects</button>
+    <button class="tab" data-target="elm-loop">Run Loop</button>
+  </div>
+
+  <div id="elm-trait" class="tab-content active" data-group="elm">
+    <pre><span class="kw">pub trait</span> <span class="ty">Model</span> {
+    <span class="cm">/// Process a message, optionally return a side effect.</span>
+    <span class="kw">fn</span> <span class="fn">update</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: <span class="ty">Msg</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">Effect</span>&gt;;
+
+    <span class="cm">/// Draw current state to the grid. Called every frame after update.</span>
+    <span class="kw">fn</span> <span class="fn">draw</span>(&amp;<span class="kw">self</span>, grid: &amp;<span class="kw">mut</span> <span class="ty">Grid</span>);
+}</pre>
+    <p>
+      The <code>Model</code> trait is the core abstraction. Your entire application is a struct that
+      implements these two methods. The framework handles the event loop, grid diffing, and rendering.
+    </p>
+  </div>
+
+  <div id="elm-msg" class="tab-content" data-group="elm">
+    <pre><span class="kw">pub enum</span> <span class="ty">Msg</span> {
+    <span class="cm">/// Sent once at startup.</span>
+    Init,
+    <span class="cm">/// Key press event.</span>
+    KeyDown { key: <span class="ty">Key</span>, modifiers: <span class="ty">ModMask</span>, time: <span class="ty">Instant</span> },
+    <span class="cm">/// Mouse event.</span>
+    Mouse { action: <span class="ty">MouseAction</span>, pos: <span class="ty">Point</span>, modifiers: <span class="ty">ModMask</span>, time: <span class="ty">Instant</span> },
+    <span class="cm">/// Terminal/window resize.</span>
+    Screen { width: <span class="ty">i32</span>, height: <span class="ty">i32</span>, time: <span class="ty">Instant</span> },
+    <span class="cm">/// Application quit signal.</span>
+    Quit,
+    <span class="cm">/// Custom message from effects (type-erased).</span>
+    Custom(<span class="ty">Arc</span>&lt;<span class="kw">dyn</span> <span class="ty">Any</span> + <span class="ty">Send</span> + <span class="ty">Sync</span>&gt;),
+}</pre>
+    <p>
+      Messages are the only way state changes. Every input event, timer tick, and async result
+      arrives as a <code>Msg</code>. Custom messages use type-erased <code>Arc&lt;dyn Any&gt;</code>
+      for extensibility.
+    </p>
+  </div>
+
+  <div id="elm-effect" class="tab-content" data-group="elm">
+    <pre><span class="kw">pub enum</span> <span class="ty">Effect</span> {
+    <span class="cm">/// Run a function in a thread, send result as Msg.</span>
+    Cmd(<span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">FnOnce</span>() -&gt; <span class="ty">Option</span>&lt;<span class="ty">Msg</span>&gt; + <span class="ty">Send</span>&gt;),
+    <span class="cm">/// Long-running subscription.</span>
+    Sub(<span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">FnOnce</span>(<span class="ty">Sender</span>&lt;<span class="ty">Msg</span>&gt;) + <span class="ty">Send</span>&gt;),
+    <span class="cm">/// Execute multiple effects.</span>
+    Batch(<span class="ty">Vec</span>&lt;<span class="ty">Effect</span>&gt;),
+    <span class="cm">/// Signal application exit.</span>
+    End,
+}</pre>
+    <p>
+      Effects are the only way to perform side effects. <code>Cmd</code> spawns a thread for one-shot work.
+      <code>Sub</code> creates long-running subscriptions (timers, network). <code>Batch</code> composes multiple effects.
+      <code>End</code> cleanly terminates the application.
+    </p>
+  </div>
+
+  <div id="elm-loop" class="tab-content" data-group="elm">
+    <pre><span class="cm">// Simplified poll-based run loop (CrosstermDriver)</span>
+<span class="kw">loop</span> {
+    <span class="cm">// 1. Poll for input</span>
+    <span class="kw">let</span> msgs = driver.<span class="fn">poll_msgs</span>();
+
+    <span class="cm">// 2. Deliver each message to the model</span>
+    <span class="kw">for</span> msg <span class="kw">in</span> msgs {
+        <span class="kw">if let</span> <span class="ty">Some</span>(effect) = model.<span class="fn">update</span>(msg) {
+            <span class="fn">handle_effect</span>(effect);  <span class="cm">// spawn threads, queue msgs, or quit</span>
+        }
+    }
+
+    <span class="cm">// 3. Render</span>
+    model.<span class="fn">draw</span>(&amp;<span class="kw">mut</span> grid);
+
+    <span class="cm">// 4. Diff and flush only changed cells</span>
+    <span class="kw">let</span> frame = <span class="fn">compute_frame</span>(&amp;prev_grid, &amp;grid);
+    driver.<span class="fn">flush</span>(frame);
+    prev_grid.<span class="fn">copy_from</span>(&amp;grid);
+}</pre>
+    <p>
+      The framework manages the event loop. For poll-based drivers (crossterm), the app calls
+      <code>poll_msgs()</code> in a loop. For event-loop drivers (winit, web), the driver owns
+      the main thread and pushes events into an <code>AppRunner</code>.
+    </p>
+  </div>
+</section>
+
+<!-- ========== CRATE MAP ========== -->
+<section id="crates">
+  <h2><span class="icon">📦</span> Crate Map</h2>
+  <p>
+    The workspace consists of 8 crates organized in a dependency tree.
+    <code>gruid-core</code> has <strong>zero external dependencies</strong> — everything else is optional.
+  </p>
+
+  <div class="diagram" id="dep-graph">
+    <svg viewBox="0 0 800 420" width="800" height="420" style="max-width:100%">
+      <!-- Dependency arrows -->
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#565f89"/>
+        </marker>
+      </defs>
+      <!-- gruid-core box -->
+      <rect x="310" y="10" width="180" height="50" rx="8" fill="#2f3349" stroke="#7aa2f7" stroke-width="2"/>
+      <text x="400" y="42" text-anchor="middle" fill="#7aa2f7" font-family="monospace" font-size="15" font-weight="bold">gruid-core</text>
+      <text x="400" y="75" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">2,761 LOC · 66 tests</text>
+
+      <!-- gruid-paths -->
+      <line x1="345" y1="60" x2="180" y2="130" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="80" y="130" width="200" height="50" rx="8" fill="#2f3349" stroke="#73daca" stroke-width="1.5"/>
+      <text x="180" y="162" text-anchor="middle" fill="#73daca" font-family="monospace" font-size="14" font-weight="bold">gruid-paths</text>
+      <text x="180" y="198" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">1,755 LOC · 15 tests</text>
+
+      <!-- gruid-rl -->
+      <line x1="180" y1="180" x2="180" y2="260" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="80" y="260" width="200" height="50" rx="8" fill="#2f3349" stroke="#9ece6a" stroke-width="1.5"/>
+      <text x="180" y="292" text-anchor="middle" fill="#9ece6a" font-family="monospace" font-size="14" font-weight="bold">gruid-rl</text>
+      <text x="180" y="328" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">2,920 LOC · 50 tests</text>
+      <text x="300" y="255" fill="#565f89" font-family="monospace" font-size="10">+ rand</text>
+
+      <!-- gruid-ui -->
+      <line x1="400" y1="60" x2="400" y2="130" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="310" y="130" width="180" height="50" rx="8" fill="#2f3349" stroke="#e0af68" stroke-width="1.5"/>
+      <text x="400" y="162" text-anchor="middle" fill="#e0af68" font-family="monospace" font-size="14" font-weight="bold">gruid-ui</text>
+      <text x="400" y="198" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">4,195 LOC · 88 tests</text>
+
+      <!-- gruid-crossterm -->
+      <line x1="455" y1="60" x2="580" y2="130" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="520" y="130" width="210" height="50" rx="8" fill="#2f3349" stroke="#bb9af7" stroke-width="1.5"/>
+      <text x="625" y="162" text-anchor="middle" fill="#bb9af7" font-family="monospace" font-size="14" font-weight="bold">gruid-crossterm</text>
+      <text x="625" y="198" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">261 LOC · poll-based</text>
+
+      <!-- gruid-winit -->
+      <line x1="580" y1="180" x2="580" y2="260" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="520" y="260" width="210" height="50" rx="8" fill="#2f3349" stroke="#f7768e" stroke-width="1.5"/>
+      <text x="625" y="292" text-anchor="middle" fill="#f7768e" font-family="monospace" font-size="14" font-weight="bold">gruid-winit</text>
+      <text x="625" y="328" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">880 LOC · event-loop</text>
+      <text x="750" y="255" fill="#565f89" font-family="monospace" font-size="10">+ winit, softbuffer, fontdue</text>
+
+      <!-- gruid-web -->
+      <line x1="625" y1="310" x2="625" y2="360" stroke="#565f89" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="520" y="360" width="210" height="50" rx="8" fill="#2f3349" stroke="#7dcfff" stroke-width="1.5" stroke-dasharray="5,3"/>
+      <text x="625" y="392" text-anchor="middle" fill="#7dcfff" font-family="monospace" font-size="14" font-weight="bold">gruid-web</text>
+      <text x="520" y="392" text-anchor="end" fill="#565f89" font-family="monospace" font-size="10">wasm32</text>
+
+      <!-- core → rl line -->
+      <line x1="345" y1="60" x2="240" y2="260" stroke="#565f89" stroke-width="1" stroke-dasharray="4,4" marker-end="url(#arrow)"/>
+    </svg>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>gruid-core</h4>
+      <div class="loc">2,761 LOC · 66 tests <span class="badge badge-blue">zero deps</span></div>
+      <p>Foundation types: <code>Grid</code>, <code>Cell</code>, <code>Point</code>, <code>Range</code>, <code>Style</code>,
+         <code>Msg</code>, <code>Model</code> trait, <code>Driver</code> traits, <code>App</code>/<code>AppRunner</code>,
+         frame recording.</p>
+      <div class="modules">
+        <span class="mod-tag">geom.rs</span>
+        <span class="mod-tag">grid.rs</span>
+        <span class="mod-tag">style.rs</span>
+        <span class="mod-tag">cell.rs</span>
+        <span class="mod-tag">messages.rs</span>
+        <span class="mod-tag">app.rs</span>
+        <span class="mod-tag">recording.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>gruid-paths</h4>
+      <div class="loc">1,755 LOC · 15 tests <span class="badge badge-green">core only</span></div>
+      <p>Pathfinding algorithms: A*, Dijkstra maps, BFS, Jump Point Search (4-way and 8-way),
+         connected components. All operate on <code>PathRange</code> for cache reuse.</p>
+      <div class="modules">
+        <span class="mod-tag">astar.rs</span>
+        <span class="mod-tag">dijkstra.rs</span>
+        <span class="mod-tag">bfs.rs</span>
+        <span class="mod-tag">jps.rs</span>
+        <span class="mod-tag">cc.rs</span>
+        <span class="mod-tag">pathrange.rs</span>
+        <span class="mod-tag">traits.rs</span>
+        <span class="mod-tag">neighbors.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>gruid-rl</h4>
+      <div class="loc">2,920 LOC · 50 tests <span class="badge badge-green">+ rand</span></div>
+      <p>Roguelike utilities: field of view (ray-based &amp; symmetric shadow casting),
+         map generation (cellular automata, random walk), vault prefabs, priority event queue.</p>
+      <div class="modules">
+        <span class="mod-tag">fov.rs</span>
+        <span class="mod-tag">mapgen.rs</span>
+        <span class="mod-tag">vault.rs</span>
+        <span class="mod-tag">grid.rs</span>
+        <span class="mod-tag">events.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>gruid-ui</h4>
+      <div class="loc">4,195 LOC · 88 tests <span class="badge badge-green">core only</span></div>
+      <p>UI widgets: Menu (2D grid layout, mouse, pages), Pager (scroll, line numbers),
+         TextInput (cursor, prompt), Label, StyledText (<code>@r</code>/<code>@g</code> markup),
+         BoxDecor (Unicode box drawing), Replay.</p>
+      <div class="modules">
+        <span class="mod-tag">menu.rs</span>
+        <span class="mod-tag">pager.rs</span>
+        <span class="mod-tag">text_input.rs</span>
+        <span class="mod-tag">styled_text.rs</span>
+        <span class="mod-tag">label.rs</span>
+        <span class="mod-tag">box_.rs</span>
+        <span class="mod-tag">replay.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>gruid-crossterm</h4>
+      <div class="loc">261 LOC <span class="badge badge-blue">Driver</span></div>
+      <p>Terminal backend using <code>crossterm</code>. Implements the poll-based <code>Driver</code> trait.
+         Handles raw mode, alternate screen, mouse capture, and color output.</p>
+      <div class="modules">
+        <span class="mod-tag">lib.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>gruid-winit</h4>
+      <div class="loc">880 LOC <span class="badge badge-red">EventLoopDriver</span></div>
+      <p>Native window backend using <code>winit</code> + <code>softbuffer</code> + <code>fontdue</code>.
+         Event-loop based. Supports custom tile rendering via <code>TileManager</code> trait.
+         DPI-aware scaling.</p>
+      <div class="modules">
+        <span class="mod-tag">lib.rs</span>
+        <span class="mod-tag">renderer.rs</span>
+        <span class="mod-tag">input.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>gruid-web</h4>
+      <div class="loc">539 LOC <span class="badge badge-orange">wasm32-only</span></div>
+      <p>Browser WASM backend using <code>wasm-bindgen</code> + <code>web-sys</code>.
+         Event-loop driver rendering to a <code>&lt;canvas&gt;</code> element.
+         Excluded from default workspace build.</p>
+      <div class="modules">
+        <span class="mod-tag">lib.rs</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>shamogu</h4>
+      <div class="loc">2,969 LOC <span class="badge badge-orange">game</span></div>
+      <p>Shamanic Mountain Guardian — a coffee-break roguelike being ported from Go.
+         14 monster types, FOV, combat, map generation with vaults, custom tile bitmaps.</p>
+      <div class="modules">
+        <span class="mod-tag">game.rs</span>
+        <span class="mod-tag">gamemap.rs</span>
+        <span class="mod-tag">model.rs</span>
+        <span class="mod-tag">entity.rs</span>
+        <span class="mod-tag">combat.rs</span>
+        <span class="mod-tag">tile_data.rs</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== GRID SYSTEM ========== -->
+<section id="grid">
+  <h2><span class="icon">🗲</span> Grid System</h2>
+  <p>
+    The <code>Grid</code> is the central data structure. It wraps a flat buffer of <code>Cell</code>s
+    behind <code>Rc&lt;RefCell&lt;GridBuffer&gt;&gt;</code>, enabling Go-like slice semantics where multiple
+    grid views share the same underlying memory.
+  </p>
+
+  <div class="diagram">
+    <h3 style="text-align:center; margin-bottom:1rem">Grid Slice Architecture</h3>
+    <svg viewBox="0 0 700 280" width="700" height="280" style="max-width:100%">
+      <!-- Main buffer -->
+      <rect x="50" y="20" width="600" height="120" rx="6" fill="none" stroke="#565f89" stroke-width="1.5"/>
+      <text x="60" y="15" fill="#7aa2f7" font-family="monospace" font-size="12">GridBuffer (80×24 = 1,920 cells)</text>
+      <!-- Grid cells representation -->
+      <g fill="#2f3349" stroke="#3b4261" stroke-width="0.5">
+        <rect x="55" y="25" width="15" height="12" rx="1"/><rect x="72" y="25" width="15" height="12" rx="1"/><rect x="89" y="25" width="15" height="12" rx="1"/><rect x="106" y="25" width="15" height="12" rx="1"/><rect x="123" y="25" width="15" height="12" rx="1"/><rect x="140" y="25" width="15" height="12" rx="1"/>
+        <text x="170" y="35" fill="#565f89" font-family="monospace" font-size="10">···</text>
+      </g>
+
+      <!-- Slice A -->
+      <rect x="120" y="55" width="250" height="70" rx="4" fill="rgba(122,162,247,0.08)" stroke="#7aa2f7" stroke-width="2" stroke-dasharray="6,3"/>
+      <text x="130" y="72" fill="#7aa2f7" font-family="monospace" font-size="11" font-weight="bold">grid.slice(Range(5,5,30,12))</text>
+      <text x="130" y="90" fill="#565f89" font-family="monospace" font-size="10">set(Point(0,0), cell) → writes at (5,5)</text>
+      <text x="130" y="105" fill="#565f89" font-family="monospace" font-size="10">All coords are relative to slice origin</text>
+
+      <!-- Slice B -->
+      <rect x="400" y="65" width="220" height="60" rx="4" fill="rgba(115,218,202,0.08)" stroke="#73daca" stroke-width="2" stroke-dasharray="6,3"/>
+      <text x="410" y="82" fill="#73daca" font-family="monospace" font-size="11" font-weight="bold">sub_grid = grid.slice(...)</text>
+      <text x="410" y="100" fill="#565f89" font-family="monospace" font-size="10">Same Rc&lt;RefCell&gt; → shared memory</text>
+
+      <!-- Rc<RefCell> annotation -->
+      <rect x="200" y="170" width="300" height="60" rx="8" fill="#2f3349" stroke="#bb9af7" stroke-width="1.5"/>
+      <text x="350" y="195" text-anchor="middle" fill="#bb9af7" font-family="monospace" font-size="13" font-weight="bold">Rc&lt;RefCell&lt;GridBuffer&gt;&gt;</text>
+      <text x="350" y="215" text-anchor="middle" fill="#565f89" font-family="monospace" font-size="11">Interior mutability — set() takes &amp;self</text>
+
+      <!-- Arrows -->
+      <line x1="245" y1="130" x2="310" y2="170" stroke="#7aa2f7" stroke-width="1.5"/>
+      <line x1="510" y1="125" x2="400" y2="170" stroke="#73daca" stroke-width="1.5"/>
+
+      <!-- Legend -->
+      <text x="50" y="270" fill="#565f89" font-family="monospace" font-size="11">
+        Grid { buffer: Rc&lt;RefCell&lt;GridBuffer&gt;&gt;, range: Range, bounds: Range }
+      </text>
+    </svg>
+  </div>
+
+  <div class="tabs" data-group="grid">
+    <button class="tab active" data-target="grid-usage">Usage</button>
+    <button class="tab" data-target="grid-diff">Frame Diffing</button>
+    <button class="tab" data-target="grid-coord">Coordinate System</button>
+  </div>
+
+  <div id="grid-usage" class="tab-content active" data-group="grid">
+    <pre><span class="cm">// Create a grid and slice it</span>
+<span class="kw">let</span> grid = <span class="ty">Grid</span>::<span class="fn">new</span>(<span class="num">80</span>, <span class="num">24</span>);
+<span class="kw">let</span> status_bar = grid.<span class="fn">slice</span>(<span class="ty">Range</span>::<span class="fn">new</span>(<span class="num">0</span>, <span class="num">23</span>, <span class="num">80</span>, <span class="num">24</span>));  <span class="cm">// bottom row</span>
+<span class="kw">let</span> game_area = grid.<span class="fn">slice</span>(<span class="ty">Range</span>::<span class="fn">new</span>(<span class="num">0</span>, <span class="num">0</span>, <span class="num">80</span>, <span class="num">22</span>));   <span class="cm">// main area</span>
+
+<span class="cm">// Writing to a slice uses relative coordinates</span>
+status_bar.<span class="fn">set</span>(<span class="ty">Point</span>::<span class="fn">new</span>(<span class="num">0</span>, <span class="num">0</span>), cell);  <span class="cm">// writes at absolute (0, 23)</span>
+game_area.<span class="fn">set</span>(<span class="ty">Point</span>::<span class="fn">new</span>(<span class="num">5</span>, <span class="num">3</span>), cell);   <span class="cm">// writes at absolute (5, 3)</span>
+
+<span class="cm">// Both views share the same GridBuffer</span>
+<span class="cm">// No copies — changes are immediately visible through other views</span></pre>
+  </div>
+
+  <div id="grid-diff" class="tab-content" data-group="grid">
+    <pre><span class="cm">// Frame diffing: only changed cells are sent to the driver</span>
+<span class="kw">let</span> frame = <span class="fn">compute_frame</span>(&amp;prev_grid, &amp;current_grid);
+<span class="cm">// frame.cells: Vec&lt;(Point, Cell)&gt; — only the deltas</span>
+
+<span class="cm">// The driver receives minimal data:</span>
+<span class="cm">//   Frame { cells: [(Point(5,3), Cell('@', green)), ...] }</span>
+<span class="cm">// For a typical roguelike frame, this is 10-50 cells</span>
+<span class="cm">// instead of the full 1,920 (80×24)</span></pre>
+    <p>
+      Frame diffing is automatic. The framework keeps two grid copies and computes the minimal
+      set of changed cells each frame. This makes terminal rendering efficient — only changed
+      characters are written.
+    </p>
+  </div>
+
+  <div id="grid-coord" class="tab-content" data-group="grid">
+    <pre><span class="cm">// All coordinates are RELATIVE to the slice</span>
+<span class="kw">let</span> grid = <span class="ty">Grid</span>::<span class="fn">new</span>(<span class="num">80</span>, <span class="num">24</span>);
+<span class="kw">let</span> sub = grid.<span class="fn">slice</span>(<span class="ty">Range</span>::<span class="fn">new</span>(<span class="num">10</span>, <span class="num">5</span>, <span class="num">30</span>, <span class="num">15</span>));
+
+sub.<span class="fn">bounds</span>()    <span class="cm">// Range(0, 0, 20, 10) — relative!</span>
+sub.<span class="fn">range_</span>()   <span class="cm">// Range(10, 5, 30, 15) — absolute</span>
+sub.<span class="fn">size</span>()     <span class="cm">// Point(20, 10)</span>
+sub.<span class="fn">contains</span>(<span class="ty">Point</span>::<span class="fn">new</span>(<span class="num">0</span>, <span class="num">0</span>))   <span class="cm">// true</span>
+sub.<span class="fn">contains</span>(<span class="ty">Point</span>::<span class="fn">new</span>(<span class="num">20</span>, <span class="num">0</span>))  <span class="cm">// false (half-open)</span>
+
+<span class="cm">// Point: i32 coordinates (matches Go gruid)</span>
+<span class="cm">// Range: half-open rectangle [min, max)</span>
+<span class="cm">// Range::new(x0, y0, x1, y1) where (x1, y1) is exclusive</span></pre>
+  </div>
+</section>
+
+<!-- ========== DRIVERS ========== -->
+<section id="drivers">
+  <h2><span class="icon">🖥️</span> Driver Architecture</h2>
+  <p>
+    gruid-rs has two driver models to support both terminal and GUI environments.
+    The same <code>Model</code> implementation works with either — no game logic changes needed.
+  </p>
+
+  <div class="card-grid" style="grid-template-columns: 1fr 1fr">
+    <div class="card" style="border-color: var(--purple)">
+      <h4 style="color:var(--purple)">Poll-Based Driver <span class="badge badge-blue">crossterm</span></h4>
+      <p>The application owns the main thread and calls <code>poll_msgs()</code> in a loop.</p>
+      <pre style="font-size:0.8rem;background:var(--bg);border:none;padding:0.75rem">
+<span class="kw">pub trait</span> <span class="ty">Driver</span> {
+  <span class="kw">fn</span> <span class="fn">init</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, w: <span class="ty">i32</span>, h: <span class="ty">i32</span>)
+    -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Error</span>&gt;&gt;;
+  <span class="kw">fn</span> <span class="fn">poll_msgs</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>)
+    -&gt; <span class="ty">Result</span>&lt;<span class="ty">Vec</span>&lt;<span class="ty">Msg</span>&gt;, _&gt;;
+  <span class="kw">fn</span> <span class="fn">flush</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, frame: <span class="ty">Frame</span>)
+    -&gt; <span class="ty">Result</span>&lt;(), _&gt;;
+  <span class="kw">fn</span> <span class="fn">close</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>)
+    -&gt; <span class="ty">Result</span>&lt;(), _&gt;;
+}</pre>
+    </div>
+
+    <div class="card" style="border-color: var(--red)">
+      <h4 style="color:var(--red)">Event-Loop Driver <span class="badge badge-blue">winit, web</span></h4>
+      <p>The driver owns the main thread and pushes events into <code>AppRunner</code>.</p>
+      <pre style="font-size:0.8rem;background:var(--bg);border:none;padding:0.75rem">
+<span class="kw">pub trait</span> <span class="ty">EventLoopDriver</span> {
+  <span class="kw">fn</span> <span class="fn">run</span>(
+    <span class="kw">self</span>,
+    runner: <span class="ty">AppRunner</span>,
+  ) -&gt; <span class="ty">Result</span>&lt;(), <span class="ty">Box</span>&lt;<span class="kw">dyn</span> <span class="ty">Error</span>&gt;&gt;;
+}
+
+<span class="cm">// AppRunner wraps your Model</span>
+<span class="cm">// and provides:</span>
+<span class="cm">//   init(), handle_msg(msg),</span>
+<span class="cm">//   draw_frame(), should_quit(),</span>
+<span class="cm">//   resize(w, h)</span></pre>
+    </div>
+  </div>
+
+  <div class="diagram">
+    <h3 style="text-align:center;margin-bottom:1rem">Driver Comparison</h3>
+    <table>
+      <tr><th>Aspect</th><th>Poll-Based (crossterm)</th><th>Event-Loop (winit, web)</th></tr>
+      <tr><td>Thread ownership</td><td>App owns main thread</td><td>Driver owns main thread</td></tr>
+      <tr><td>Input handling</td><td><code>poll_msgs()</code> returns batch</td><td>Driver pushes <code>Msg</code> one at a time</td></tr>
+      <tr><td>Rendering trigger</td><td>App calls <code>flush()</code></td><td>Driver requests redraw</td></tr>
+      <tr><td>Frame pacing</td><td>App-controlled loop</td><td>VSync / requestAnimationFrame</td></tr>
+      <tr><td>Platform</td><td>Terminal (any OS)</td><td>Native window / Browser</td></tr>
+      <tr><td>Mouse support</td><td>Crossterm mouse events</td><td>Window mouse events</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ========== PATHFINDING ========== -->
+<section id="paths">
+  <h2><span class="icon">🛤️</span> Pathfinding</h2>
+  <p>
+    The <code>gruid-paths</code> crate provides five algorithms, all sharing a <code>PathRange</code>
+    cache for amortized allocation. The trait hierarchy lets you pick the minimum interface
+    your map needs to support.
+  </p>
+
+  <div class="diagram">
+    <h3 style="text-align:center;margin-bottom:1rem">Trait Hierarchy</h3>
+    <div class="flow">
+      <div class="flow-box">Pather<br><small style="color:var(--fg3)">neighbors(p)</small></div>
+      <div class="flow-arrow">← extends →</div>
+      <div class="flow-box highlight">WeightedPather<br><small style="color:var(--fg3)">+ cost(from, to)</small></div>
+      <div class="flow-arrow">← extends →</div>
+      <div class="flow-box">AstarPather<br><small style="color:var(--fg3)">+ estimation(from, to)</small></div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Algorithm</th><th>Trait Required</th><th>Result</th><th>Use Case</th></tr>
+    <tr>
+      <td><code>astar_path()</code></td>
+      <td><code>AstarPather</code></td>
+      <td>Shortest path A→B</td>
+      <td>Player pathfinding, click-to-move</td>
+    </tr>
+    <tr>
+      <td><code>dijkstra_map()</code></td>
+      <td><code>WeightedPather</code></td>
+      <td>Cost from sources to all reachable cells</td>
+      <td>Monster AI, influence maps</td>
+    </tr>
+    <tr>
+      <td><code>bfs_map()</code></td>
+      <td><code>Pather</code></td>
+      <td>Uniform-cost map from sources</td>
+      <td>Distance fields, flood fill</td>
+    </tr>
+    <tr>
+      <td><code>jps_path()</code></td>
+      <td><code>Fn(Point) -&gt; bool</code></td>
+      <td>Shortest path (uniform grid)</td>
+      <td>Fast pathfinding on open maps</td>
+    </tr>
+    <tr>
+      <td><code>cc_map_all()</code></td>
+      <td><code>Pather</code></td>
+      <td>Connected component labels</td>
+      <td>Map connectivity, room detection</td>
+    </tr>
+  </table>
+
+  <details>
+    <summary>PathRange — Cache Owner</summary>
+    <div class="inner">
+      <p>
+        All algorithms operate on a <code>PathRange</code>, which owns the internal caches
+        (open/closed sets, cost maps). Creating a PathRange allocates once; subsequent calls
+        reuse memory via generation-based invalidation (no memset needed).
+      </p>
+      <pre><span class="kw">let mut</span> pr = <span class="ty">PathRange</span>::<span class="fn">new</span>(map_range);
+
+<span class="cm">// First call allocates cache</span>
+<span class="kw">let</span> path = pr.<span class="fn">astar_path</span>(&amp;pather, start, goal);
+
+<span class="cm">// Subsequent calls reuse memory (generation counter invalidates old data)</span>
+<span class="kw">let</span> path2 = pr.<span class="fn">astar_path</span>(&amp;pather, start, goal2);
+
+<span class="cm">// JPS has a buffer-reuse variant</span>
+<span class="kw">let mut</span> buf = <span class="ty">Vec</span>::<span class="fn">new</span>();
+pr.<span class="fn">jps_path_into</span>(&amp;<span class="kw">mut</span> buf, start, goal, |p| passable(p), <span class="kw">true</span>);</pre>
+    </div>
+  </details>
+</section>
+
+<!-- ========== ROGUELIKE ========== -->
+<section id="rl">
+  <h2><span class="icon">⚔️</span> Roguelike Utilities</h2>
+  <p>
+    The <code>gruid-rl</code> crate provides game-specific utilities built on top of
+    <code>gruid-core</code> and <code>gruid-paths</code>.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4 style="color:var(--green)">Field of View</h4>
+      <div class="loc">1,193 LOC · fov.rs</div>
+      <p>Two FOV algorithms:</p>
+      <p><strong>Ray-based</strong> (<code>vision_map</code>) — casts rays from source to perimeter.
+         Fast, good for player vision.</p>
+      <p><strong>Symmetric Shadow Casting</strong> (<code>ssc_vision_map</code>) — precise, symmetric
+         visibility. If A sees B, B sees A.</p>
+      <p>Both produce a <code>LightMap</code> — queryable with <code>fov.at(point)</code>.
+         Supports circular light radius clipping via <code>retain_circular()</code>.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--green)">Map Generation</h4>
+      <div class="loc">374 LOC · mapgen.rs</div>
+      <p>Two procedural generation methods:</p>
+      <p><strong>Cellular Automata</strong> — natural cave-like maps with configurable
+         birth/survival rules and iteration count.</p>
+      <p><strong>Random Walk</strong> — drunkard's walk carving with configurable
+         floor percentage target.</p>
+      <p><code>keep_connected()</code> uses connected components to ensure
+         all open areas are reachable from a start point.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--green)">Vaults</h4>
+      <div class="loc">331 LOC · vault.rs</div>
+      <p>ASCII-art room prefabs loaded from text. Support <code>reflect()</code>
+         and <code>rotate(n)</code> transforms for 8 orientations.
+         Applied to the <code>rl::Grid</code> via <code>vault.draw()</code>.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--green)">Event Queue</h4>
+      <div class="loc">263 LOC · events.rs</div>
+      <p>Priority queue for turn scheduling: <code>EventQueue&lt;E&gt;</code>.
+         Supports <code>push(event, rank)</code>, <code>push_first()</code> (same rank, LIFO),
+         <code>pop()</code>, and <code>filter()</code>. Serde-serializable for save/load.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>FOV Algorithm Comparison</summary>
+    <div class="inner">
+      <table>
+        <tr><th>Property</th><th>Ray-Based</th><th>Symmetric Shadow Casting</th></tr>
+        <tr><td>Symmetry</td><td>No (A sees B ≠ B sees A)</td><td>Yes (guaranteed)</td></tr>
+        <tr><td>Speed</td><td>Faster (fewer calculations)</td><td>Slightly slower</td></tr>
+        <tr><td>Artifacts</td><td>Minor ray aliasing</td><td>Clean boundaries</td></tr>
+        <tr><td>Diagonal support</td><td>Always 8-way</td><td>Configurable (4/8)</td></tr>
+        <tr><td>Light sources</td><td><code>light_map()</code></td><td><code>ssc_light_map()</code></td></tr>
+        <tr><td>Best for</td><td>Player FOV, fast updates</td><td>Precise line of sight</td></tr>
+      </table>
+    </div>
+  </details>
+</section>
+
+<!-- ========== UI WIDGETS ========== -->
+<section id="ui">
+  <h2><span class="icon">🎨</span> UI Widgets</h2>
+  <p>
+    The <code>gruid-ui</code> crate provides composable widgets that render to grid slices.
+    All widgets follow the same pattern: create with config, call <code>update(msg)</code>,
+    then <code>draw(grid)</code>.
+  </p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4 style="color:var(--orange)">Menu</h4>
+      <div class="loc">1,134 LOC <span class="badge badge-green">88 tests</span></div>
+      <p>Scrollable menu with keyboard + mouse support. Features: 2D grid layout
+         (multi-column), page number footer, <code>active_invokable()</code> for valid-only selection,
+         style customization (active/inactive/disabled).</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--orange)">StyledText</h4>
+      <div class="loc">780 LOC</div>
+      <p>Rich text with inline markup: <code>@r</code>red <code>@g</code>green <code>@b</code>blue.
+         Builder pattern: <code>StyledText::text("hello").with_text(" world")</code>.
+         Supports <code>format(width)</code> for word wrapping, <code>lines()</code> iteration,
+         and direct <code>draw(grid)</code>.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--orange)">Pager</h4>
+      <div class="loc">756 LOC</div>
+      <p>Scrollable text viewer. Vertical + horizontal scroll, mouse wheel support,
+         8-column horizontal scroll step, line-number footer,
+         <code>view()</code> returns visible range, <code>set_cursor()</code> for auto-scroll-to.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--orange)">TextInput</h4>
+      <div class="loc">458 LOC</div>
+      <p>Single-line text input with cursor. Prompt prefix, auto-reverse cursor style,
+         mouse click-to-position, Home/End/Delete support.
+         Returns <code>TextInputAction::Submit</code> or <code>Cancel</code>.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--orange)">Replay</h4>
+      <div class="loc">775 LOC</div>
+      <p>Frame-by-frame replay player for recorded sessions. Auto-play with speed control
+         (1x-8x), pause, seek, undo, help overlay, mouse interaction, grid auto-resize.</p>
+    </div>
+
+    <div class="card">
+      <h4 style="color:var(--orange)">Label &amp; BoxDecor</h4>
+      <div class="loc">275 LOC</div>
+      <p><strong>Label:</strong> styled text display with background fill and width adjustment.<br>
+         <strong>BoxDecor:</strong> Unicode box drawing with markup-aware title &amp; footer.
+         Draws border and returns inner range for content.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>Widget Lifecycle Pattern</summary>
+    <div class="inner">
+      <pre><span class="cm">// All widgets follow the same pattern:</span>
+
+<span class="cm">// 1. Create with config</span>
+<span class="kw">let mut</span> menu = <span class="ty">Menu</span>::<span class="fn">new</span>(<span class="ty">MenuConfig</span> {
+    grid: grid.<span class="fn">slice</span>(menu_range),
+    entries: <span class="kw">vec!</span>[<span class="st">"New Game"</span>, <span class="st">"Load"</span>, <span class="st">"Quit"</span>],
+    ..Default::default()
+});
+
+<span class="cm">// 2. In update(), forward messages</span>
+<span class="kw">fn</span> <span class="fn">update</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: <span class="ty">Msg</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">Effect</span>&gt; {
+    menu.<span class="fn">update</span>(msg);  <span class="cm">// widget processes keys/mouse</span>
+    <span class="kw">match</span> menu.<span class="fn">action</span>() {
+        <span class="ty">Some</span>(<span class="ty">MenuAction</span>::Invoke(i)) =&gt; { <span class="cm">/* handle selection */</span> }
+        _ =&gt; {}
+    }
+    <span class="ty">None</span>
+}
+
+<span class="cm">// 3. In draw(), render the widget</span>
+<span class="kw">fn</span> <span class="fn">draw</span>(&amp;<span class="kw">self</span>, grid: &amp;<span class="kw">mut</span> <span class="ty">Grid</span>) {
+    menu.<span class="fn">draw</span>(grid);  <span class="cm">// renders to its grid slice</span>
+}</pre>
+    </div>
+  </details>
+</section>
+
+<!-- ========== DESIGN DECISIONS ========== -->
+<section id="design">
+  <h2><span class="icon">🧠</span> Design Decisions: Go → Rust</h2>
+  <p>
+    Key architectural differences between the Go original and the Rust reimplementation,
+    and the reasoning behind each choice.
+  </p>
+
+  <table>
+    <tr><th>Aspect</th><th>Go gruid</th><th>Rust gruid-rs</th><th>Why</th></tr>
+    <tr>
+      <td><strong>Grid memory</strong></td>
+      <td>Slice of underlying array</td>
+      <td><code>Rc&lt;RefCell&lt;GridBuffer&gt;&gt;</code></td>
+      <td>Rust has no implicit shared array slicing; Rc+RefCell gives equivalent semantics</td>
+    </tr>
+    <tr>
+      <td><strong>Driver model</strong></td>
+      <td>Single <code>DriverPollMsg</code> interface</td>
+      <td>Separate <code>Driver</code> + <code>EventLoopDriver</code></td>
+      <td>winit requires owning the main thread; can't express both patterns in one trait</td>
+    </tr>
+    <tr>
+      <td><strong>Pathfinding</strong></td>
+      <td><code>interface{}</code></td>
+      <td><code>Pather</code> → <code>WeightedPather</code> → <code>AstarPather</code></td>
+      <td>Trait hierarchy gives compile-time guarantees about algorithm requirements</td>
+    </tr>
+    <tr>
+      <td><strong>Events</strong></td>
+      <td><code>interface{}</code></td>
+      <td>Generic <code>EventQueue&lt;E&gt;</code></td>
+      <td>Type-safe event scheduling without runtime type assertions</td>
+    </tr>
+    <tr>
+      <td><strong>Terminal</strong></td>
+      <td>tcell (CGo)</td>
+      <td>crossterm (pure Rust)</td>
+      <td>No CGo dependency; cross-platform; better Windows support</td>
+    </tr>
+    <tr>
+      <td><strong>Graphics</strong></td>
+      <td>SDL2 (CGo)</td>
+      <td>winit + softbuffer + fontdue</td>
+      <td>Pure Rust stack; no C dependencies; easier to build</td>
+    </tr>
+    <tr>
+      <td><strong>Tiles</strong></td>
+      <td>Built into SDL2 driver</td>
+      <td><code>TileManager</code> trait + embedded bitmaps</td>
+      <td>Pluggable tile system; apps provide their own tile lookup</td>
+    </tr>
+    <tr>
+      <td><strong>Serialization</strong></td>
+      <td>gob + zlib</td>
+      <td>serde (opt-in feature flag)</td>
+      <td>Ecosystem standard; supports JSON, bincode, etc.</td>
+    </tr>
+    <tr>
+      <td><strong>Cache invalidation</strong></td>
+      <td>Manual reset</td>
+      <td>Generation-based zero-cost</td>
+      <td>No memset needed; just bump a counter</td>
+    </tr>
+    <tr>
+      <td><strong>Browser</strong></td>
+      <td>Not supported</td>
+      <td>gruid-web (WASM)</td>
+      <td>Rust’s first-class WASM support enables browser deployment</td>
+    </tr>
+  </table>
+
+  <details>
+    <summary>Interior Mutability Deep Dive</summary>
+    <div class="inner">
+      <p>
+        The biggest architectural departure is Grid’s use of <code>Rc&lt;RefCell&lt;GridBuffer&gt;&gt;</code>.
+        In Go, slicing an array gives you a view of the same underlying data for free.
+        In Rust, this shared mutable access pattern requires explicit opt-in.
+      </p>
+      <pre><span class="cm">// Go: implicit shared backing array</span>
+<span class="cm">// grid := make([]Cell, 80*24)</span>
+<span class="cm">// sub := grid[5*80 : 15*80]  // same memory</span>
+
+<span class="cm">// Rust: explicit shared ownership</span>
+<span class="kw">pub struct</span> <span class="ty">Grid</span> {
+    buffer: <span class="ty">Rc</span>&lt;<span class="ty">RefCell</span>&lt;<span class="ty">GridBuffer</span>&gt;&gt;,  <span class="cm">// shared, ref-counted</span>
+    range: <span class="ty">Range</span>,                        <span class="cm">// absolute position in buffer</span>
+    bounds: <span class="ty">Range</span>,                       <span class="cm">// relative bounds (0,0 origin)</span>
+}
+
+<span class="cm">// Methods take &amp;self (not &amp;mut self) because mutation</span>
+<span class="cm">// goes through RefCell's runtime borrow checking</span>
+<span class="kw">impl</span> <span class="ty">Grid</span> {
+    <span class="kw">pub fn</span> <span class="fn">set</span>(&amp;<span class="kw">self</span>, p: <span class="ty">Point</span>, cell: <span class="ty">Cell</span>) {
+        <span class="kw">let mut</span> buf = <span class="kw">self</span>.buffer.<span class="fn">borrow_mut</span>();
+        <span class="cm">// translate relative p to absolute index</span>
+        buf.cells[idx] = cell;
+    }
+}</pre>
+      <p>
+        This is safe and correct, with minimal overhead. The RefCell borrow checks are
+        optimized away in practice since grid operations don’t overlap.
+      </p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Generation-Based Cache Invalidation</summary>
+    <div class="inner">
+      <p>
+        <code>PathRange</code> and <code>FOV</code> use generation counters instead of clearing
+        their internal arrays. Each computation bumps a generation counter. When reading a cached
+        value, the generation is compared — stale entries are treated as uninitialized.
+      </p>
+      <pre><span class="kw">struct</span> <span class="ty">CacheEntry</span> {
+    value: <span class="ty">i32</span>,
+    generation: <span class="ty">u32</span>,  <span class="cm">// when was this written?</span>
+}
+
+<span class="kw">struct</span> <span class="ty">PathRange</span> {
+    nodes: <span class="ty">Vec</span>&lt;<span class="ty">CacheEntry</span>&gt;,
+    cur_gen: <span class="ty">u32</span>,  <span class="cm">// current computation generation</span>
+}
+
+<span class="cm">// Starting a new computation: just bump the counter</span>
+<span class="cm">// No need to zero out the entire array!</span>
+<span class="kw">self</span>.cur_gen += <span class="num">1</span>;
+
+<span class="cm">// Reading: check if entry is current</span>
+<span class="kw">if</span> node.generation == <span class="kw">self</span>.cur_gen {
+    <span class="cm">// valid cached value</span>
+} <span class="kw">else</span> {
+    <span class="cm">// treat as unvisited</span>
+}</pre>
+      <p>
+        This gives O(1) cache reset instead of O(n), which matters for large maps
+        with frequent pathfinding queries.
+      </p>
+    </div>
+  </details>
+</section>
+
+<!-- ========== SHAMOGU ========== -->
+<section id="shamogu">
+  <h2><span class="icon">🏮</span> Shamogu: Reference Game</h2>
+  <p>
+    <strong>Shamanic Mountain Guardian</strong> is a coffee-break roguelike being ported from
+    <a href="https://codeberg.org/anaseto/shamogu" style="color:var(--accent)">the Go original</a>
+    (17,210 LOC). It serves as both a real game and a comprehensive test of the framework.
+  </p>
+
+  <div class="card-grid" style="grid-template-columns: 1fr 1fr">
+    <div class="card" style="border-color:var(--green)">
+      <h4 style="color:var(--green)">✅ Implemented (~15%)</h4>
+      <p>2,969 LOC across 14 files</p>
+      <ul style="color:var(--fg2);font-size:0.9rem;padding-left:1.5rem;margin-top:0.5rem">
+        <li>Map generation (cellular automata + vaults)</li>
+        <li>Player movement (8-dir + vi keys + mouse)</li>
+        <li>Ray-based FOV with lit/dark/explored</li>
+        <li>14 of 27 monster types with A* AI</li>
+        <li>Bump-to-attack combat with HP/ATK/DEF</li>
+        <li>Color-coded message log</li>
+        <li>Status bar (HP, position, turn, mode)</li>
+        <li>Help pager (?)</li>
+        <li>Both crossterm and winit backends</li>
+        <li>174 custom monochrome tile bitmaps</li>
+      </ul>
+    </div>
+
+    <div class="card" style="border-color:var(--orange)">
+      <h4 style="color:var(--orange)">🔲 Remaining (~85%)</h4>
+      <p>~14,000 LOC equivalent to port</p>
+      <ul style="color:var(--fg2);font-size:0.9rem;padding-left:1.5rem;margin-top:0.5rem">
+        <li>13 more monster types</li>
+        <li>40-trait monster bitfield system</li>
+        <li>19 status effects with durations</li>
+        <li>~20 totemic spirits with abilities</li>
+        <li>7 consumable items + inventory</li>
+        <li>Ranged attacks &amp; special abilities</li>
+        <li>Clouds (steam, fire, poison)</li>
+        <li>10 dungeon levels with stairs</li>
+        <li>Noise propagation system</li>
+        <li>Animations &amp; visual effects</li>
+        <li>Save/load (serde)</li>
+        <li>Auto-explore &amp; auto-travel</li>
+      </ul>
+    </div>
+  </div>
+
+  <details>
+    <summary>Shamogu Architecture</summary>
+    <div class="inner">
+      <pre><span class="cm">// Shamogu follows the gruid-rs Elm pattern:</span>
+
+<span class="kw">struct</span> <span class="ty">ShamoguModel</span> {
+    game: <span class="ty">Game</span>,        <span class="cm">// game state (map, entities, turn)</span>
+    mode: <span class="ty">UIMode</span>,      <span class="cm">// Normal, Help, Examine, etc.</span>
+    log: <span class="ty">MessageLog</span>,   <span class="cm">// combat/system messages</span>
+}
+
+<span class="kw">impl</span> <span class="ty">Model</span> <span class="kw">for</span> <span class="ty">ShamoguModel</span> {
+    <span class="kw">fn</span> <span class="fn">update</span>(&amp;<span class="kw">mut</span> <span class="kw">self</span>, msg: <span class="ty">Msg</span>) -&gt; <span class="ty">Option</span>&lt;<span class="ty">Effect</span>&gt; {
+        <span class="kw">match</span> <span class="kw">self</span>.mode {
+            <span class="ty">UIMode</span>::Normal =&gt; <span class="kw">self</span>.<span class="fn">handle_normal</span>(msg),
+            <span class="ty">UIMode</span>::Help   =&gt; <span class="kw">self</span>.<span class="fn">handle_help</span>(msg),
+            <span class="cm">// ...</span>
+        }
+    }
+
+    <span class="kw">fn</span> <span class="fn">draw</span>(&amp;<span class="kw">self</span>, grid: &amp;<span class="kw">mut</span> <span class="ty">Grid</span>) {
+        <span class="kw">self</span>.<span class="fn">draw_map</span>(grid);       <span class="cm">// terrain + entities in FOV</span>
+        <span class="kw">self</span>.<span class="fn">draw_status</span>(grid);    <span class="cm">// HP bar, position, turn</span>
+        <span class="kw">self</span>.<span class="fn">draw_log</span>(grid);       <span class="cm">// message log (bottom 2 rows)</span>
+    }
+}</pre>
+    </div>
+  </details>
+
+  <details>
+    <summary>Tile Rendering System</summary>
+    <div class="inner">
+      <p>
+        The winit backend supports custom tiles via the <code>TileManager</code> trait.
+        Shamogu embeds 174 monochrome 16×24 bitmaps (one per game character) that are
+        colorized at render time.
+      </p>
+      <pre><span class="kw">pub trait</span> <span class="ty">TileManager</span> {
+    <span class="cm">/// Tile dimensions in pixels.</span>
+    <span class="kw">fn</span> <span class="fn">tile_size</span>(&amp;<span class="kw">self</span>) -&gt; (<span class="ty">usize</span>, <span class="ty">usize</span>);
+
+    <span class="cm">/// Return a bitmap for a cell, or None for font fallback.</span>
+    <span class="kw">fn</span> <span class="fn">get_tile</span>(&amp;<span class="kw">self</span>, cell: &amp;<span class="ty">Cell</span>) -&gt; <span class="ty">Option</span>&lt;&amp;[<span class="ty">u8</span>]&gt;;
+}
+
+<span class="cm">// When get_tile() returns None, the renderer falls back</span>
+<span class="cm">// to fontdue glyph rasterization. This means you can mix</span>
+<span class="cm">// custom tiles with regular text seamlessly.</span>
+
+<span class="cm">// DPI-aware scaling via WinitConfig::tile_scale:</span>
+<span class="cm">//   0 = auto-detect from display scale factor</span>
+<span class="cm">//   N = explicit Nx integer scaling</span></pre>
+    </div>
+  </details>
+</section>
+
+</main>
+
+<footer>
+  Reimplemented from <a href="https://codeberg.org/anaseto/gruid">gruid</a> by Yon (anaseto).
+  Rust port: <a href="https://github.com/HexSleeves/gruid-rs">github.com/HexSleeves/gruid-rs</a>.
+  MIT OR Apache-2.0.
+</footer>
+
+<script>
+// === Tab switching ===
+function initTabs() {
+  document.querySelectorAll('.tabs').forEach(tabBar => {
+    const group = tabBar.dataset.group;
+    const tabs = tabBar.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll(`.tab-content[data-group="${group}"]`).forEach(c => c.classList.remove('active'));
+        document.querySelector(`#${tab.dataset.target}`).classList.add('active');
+      });
+    });
+  });
+}
+
+// === Scroll-based nav highlighting ===
+function initNav() {
+  const links = document.querySelectorAll('nav a');
+  const sections = [];
+  links.forEach(a => {
+    const id = a.getAttribute('href').slice(1);
+    const el = document.getElementById(id);
+    if (el) sections.push({ el, a });
+  });
+  window.addEventListener('scroll', () => {
+    const y = window.scrollY + 80;
+    let current = sections[0];
+    sections.forEach(s => { if (s.el.offsetTop <= y) current = s; });
+    links.forEach(a => a.classList.remove('active'));
+    if (current) current.a.classList.add('active');
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initTabs();
+  initNav();
+});
+</script>
+
+</body>
+</html>
