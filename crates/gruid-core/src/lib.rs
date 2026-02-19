@@ -11,6 +11,7 @@ pub mod grid;
 pub mod messages;
 pub mod recording;
 pub mod style;
+pub mod tiles;
 
 pub use app::{App, AppConfig, AppRunner, Cmd, Driver, Effect, EventLoopDriver, Model};
 pub use cell::Cell;
@@ -18,3 +19,4 @@ pub use geom::{Point, Range};
 pub use grid::Grid;
 pub use messages::*;
 pub use style::{AttrMask, Color, Style};
+pub use tiles::TileManager;

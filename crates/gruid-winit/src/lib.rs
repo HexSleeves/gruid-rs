@@ -27,25 +27,7 @@ use gruid_core::{
     messages::Msg,
 };
 
-// ---------------------------------------------------------------------------
-// TileManager trait
-// ---------------------------------------------------------------------------
-
-/// A tile manager provides custom tile images for grid cells.
-///
-/// Each tile is a **monochrome alpha bitmap** (one byte per pixel, 0=background,
-/// 255=foreground). The renderer colorizes tiles using the cell's fg/bg colors.
-///
-/// This is similar to Go gruid-sdl's TileManager interface.
-pub trait TileManager: Send + 'static {
-    /// Tile size in pixels (width, height). All tiles must be this size.
-    fn tile_size(&self) -> (usize, usize);
-
-    /// Return the monochrome alpha bitmap for the given cell, if a custom tile exists.
-    /// Return `None` to fall back to font-based rendering.
-    /// The returned slice must have exactly `tile_width * tile_height` bytes.
-    fn get_tile(&self, cell: &gruid_core::Cell) -> Option<&[u8]>;
-}
+pub use gruid_core::TileManager;
 
 use renderer::GridRenderer;
 
